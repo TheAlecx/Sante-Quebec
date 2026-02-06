@@ -1,0 +1,278 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===============================
+// ENUMS
+// ===============================
+enum Sexe {
+  HOMME
+  FEMME
+}
+
+enum Role {
+  PATIENT
+  INFIRMIER
+  AMBULANCIER
+  PHARMACIEN
+  MEDECIN_GENERAL
+  MEDECIN_SPECIALISTE
+  ADMIN
+}
+
+enum ActionAudit {
+  LECTURE
+  CREATION
+  MODIFICATION
+  SUPPRESSION
+}
+
+enum TypeAssurance {
+  RAMQ
+  PRIVEE
+}
+
+enum TypeEchange {
+  VERIFICATION
+  RECLAMATION
+  REMBOURSEMENT
+}
+
+enum StatutEchange {
+  ENVOYE
+  ACCEPTE
+  REFUSE
+  ERREUR
+}
+
+// ===============================
+// UTILISATEURS
+// ===============================
+model Utilisateur {
+  id_utilisateur String  @id @default(uuid())
+  email          String  @unique
+  mot_de_passe   String
+  nom            String?
+  prenom         String?
+  role           Role
+  actif          Boolean @default(true)
+
+  consultations Consultation[]        @relation("ConsultationCreateur")
+  prescriptions Prescription[]        @relation("PrescriptionMedecin")
+  observations  ObservationMedicale[] @relation("ObservationCreateur")
+
+  autorisations AutorisationDossier[]
+  accesUrgence  AccesUrgence[]
+  audits        JournalAudit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===============================
+// PATIENT & DOSSIER
+// ===============================
+model Patient {
+  id_patient       String   @id @default(uuid())
+  nom              String
+  prenom           String
+  date_naissance   DateTime
+  sexe             Sexe
+  numero_assurance String?  @unique
+  telephone        String?
+  adresse          String?
+
+  dossier    DossierMedical?
+  assurances CouvertureAssurance[]
+  echanges   EchangeAssurance[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DossierMedical {
+  id_dossier    String   @id @default(uuid())
+  date_creation DateTime @default(now())
+  etat          String?
+
+  patient_id String  @unique
+  patient    Patient @relation(fields: [patient_id], references: [id_patient])
+
+  consultations Consultation[]
+  prescriptions Prescription[]
+  observations  ObservationMedicale[]
+  autorisations AutorisationDossier[]
+  accesUrgence  AccesUrgence[]
+  fhirMappings  FhirMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ===============================
+// CONTENU MEDICAL
+// ===============================
+model Consultation {
+  id_consultation String   @id @default(uuid())
+  date            DateTime
+  motif           String
+  diagnostic      String?
+
+  dossier_id String
+  dossier    DossierMedical @relation(fields: [dossier_id], references: [id_dossier])
+
+  cree_par String
+  createur Utilisateur @relation("ConsultationCreateur", fields: [cree_par], references: [id_utilisateur])
+
+  createdAt DateTime @default(now())
+}
+
+model Prescription {
+  id_prescription String   @id @default(uuid())
+  date            DateTime
+  instructions    String?
+
+  dossier_id String
+  dossier    DossierMedical @relation(fields: [dossier_id], references: [id_dossier])
+
+  medecin_id String
+  medecin    Utilisateur @relation("PrescriptionMedecin", fields: [medecin_id], references: [id_utilisateur])
+
+  medicaments PrescriptionMedicament[]
+
+  createdAt DateTime @default(now())
+}
+
+model Medicament {
+  id_medicament String  @id @default(uuid())
+  nom           String
+  dosage        String?
+
+  prescriptions PrescriptionMedicament[]
+}
+
+model PrescriptionMedicament {
+  prescription_id String
+  medicament_id   String
+
+  prescription Prescription @relation(fields: [prescription_id], references: [id_prescription])
+  medicament   Medicament   @relation(fields: [medicament_id], references: [id_medicament])
+
+  @@id([prescription_id, medicament_id])
+}
+
+model ObservationMedicale {
+  id_observation String   @id @default(uuid())
+  type           String
+  valeur         String
+  date           DateTime
+
+  dossier_id String
+  dossier    DossierMedical @relation(fields: [dossier_id], references: [id_dossier])
+
+  cree_par String
+  createur Utilisateur @relation("ObservationCreateur", fields: [cree_par], references: [id_utilisateur])
+
+  createdAt DateTime @default(now())
+}
+
+// ===============================
+// AUTORISATIONS & URGENCE
+// ===============================
+model AutorisationDossier {
+  id_autorisation String  @id @default(uuid())
+  lecture         Boolean
+  ajout           Boolean
+  modification    Boolean
+  suppression     Boolean
+
+  utilisateur_id String
+  dossier_id     String
+
+  utilisateur Utilisateur    @relation(fields: [utilisateur_id], references: [id_utilisateur])
+  dossier     DossierMedical @relation(fields: [dossier_id], references: [id_dossier])
+
+  @@unique([utilisateur_id, dossier_id])
+}
+
+model AccesUrgence {
+  id_acces   String   @id @default(uuid())
+  raison     String
+  date_debut DateTime @default(now())
+  date_fin   DateTime
+  actif      Boolean  @default(true)
+
+  utilisateur_id String
+  dossier_id     String
+
+  utilisateur Utilisateur    @relation(fields: [utilisateur_id], references: [id_utilisateur])
+  dossier     DossierMedical @relation(fields: [dossier_id], references: [id_dossier])
+}
+
+// ===============================
+// AUDIT LEGAL
+// ===============================
+model JournalAudit {
+  id_audit  String      @id @default(uuid())
+  date      DateTime    @default(now())
+  action    ActionAudit
+  entite    String
+  entite_id String
+  ip        String?
+
+  utilisateur_id String
+  utilisateur    Utilisateur @relation(fields: [utilisateur_id], references: [id_utilisateur])
+}
+
+// ===============================
+// FHIR
+// ===============================
+model FhirMapping {
+  id_mapping     String @id @default(uuid())
+  ressource_fhir String
+  ressource_id   String
+  entite_interne String
+  entite_id      String
+
+  dossier_id String?
+  dossier    DossierMedical? @relation(fields: [dossier_id], references: [id_dossier])
+}
+
+// ===============================
+// ASSURANCE / RAMQ
+// ===============================
+model CouvertureAssurance {
+  id_couverture String        @id @default(uuid())
+  type          TypeAssurance
+  organisme     String
+  numero_assure String
+  date_debut    DateTime?
+  date_fin      DateTime?
+  actif         Boolean       @default(true)
+
+  patient_id String
+  patient    Patient @relation(fields: [patient_id], references: [id_patient])
+}
+
+model EchangeAssurance {
+  id_echange   String        @id @default(uuid())
+  type_echange TypeEchange
+  statut       StatutEchange
+  date         DateTime      @default(now())
+  requete      Json
+  reponse      Json
+
+  patient_id String
+  patient    Patient @relation(fields: [patient_id], references: [id_patient])
+}
