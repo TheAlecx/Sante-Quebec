@@ -22,5 +22,10 @@ export async function login(email: string, password: string) {
         process.env.JWT_SECRET as string,
         { expiresIn: '8h'}
         );
-    return { token };
+    return {
+        token,
+        id: user.id_utilisateur,
+        email: user.email,
+        role: user.role,
+    };
 }
