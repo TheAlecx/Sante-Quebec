@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(npx prisma generate:*)",
-      "Bash(npx ts-node:*)",
-      "Bash(npx prisma db push:*)"
-    ]
-  }
-}

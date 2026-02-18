@@ -1,11 +1,11 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-
 export async function apiFetch(
   url: string,
   options: RequestInit = {}
 ): Promise<Response> {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
   const res = await fetch(`${API_URL}${url}`, {
     ...options,
