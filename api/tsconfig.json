@@ -7,7 +7,7 @@
     "strict": true,
     "esModuleInterop": true,
     "typeRoots": ["./node_modules/@types", "./src/types"],
-    "types": ["node", "express", "jsonwebtoken"]
+    "types": ["node", "express", "jsonwebtoken", "jest"]
   },
   "include": ["./**/*.ts"],
   "exclude": ["prisma", "prisma.config.ts", "node_modules", "dist"]

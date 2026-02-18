@@ -1,8 +1,6 @@
-import { ActionAudit } from "../generated/prisma/client";
-import { PrismaClient } from "@prisma/client/extension";
+import { ActionAudit } from "@prisma/client";
 import { Request } from "express";
-
-const prisma = new PrismaClient();
+import { prisma } from "./prisma";
 
 export async function logAudit(
   req: Request,

@@ -1,8 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client/extension';
-
-const prisma = new PrismaClient();
+import { prisma } from "../utils/prisma";
 
 export async function login(email: string, password: string) {
     const user = await prisma.utilisateur.findUnique({ where: { email } });
@@ -19,7 +17,7 @@ export async function login(email: string, password: string) {
             email: user.email,
             role: user.role,
         },
-        process.env.JWT_SECRET as string,
+        process.env.JWT_SECRET_KEY as string,
         { expiresIn: '8h'}
         );
     return {

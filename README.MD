@@ -1,7 +1,6 @@
 
 ## DESTKTOP ##
 
-Electron
 Vite
 React
 TS
@@ -43,6 +42,16 @@ RAMQ Adapter
         │                       │
 ┌──────────────┐        ┌──────────────┐
 │ Desktop App  │        │  Web App     │
-│ TS (Electron)│        │ TS (React)   │
+│ TS           │        │ TS (React)   │
 └──────────────┘        └──────────────┘
+
+
+
+|Email	                |Mot de passe	|Rôle	         |Permissions sur le dossier        |
+|-----------------------|---------------|----------------|----------------------------------|
+|medecin@medical.local	|Password123!	|MEDECIN_GENERAL |lecture, ajout, modification      |
+|infirmier@medical.local|Password123!	|INFIRMIER	 |lecture, ajout                    |
+|patient@medical.local	|Password123!	|PATIENT	 |lecture seulement                 |
+|admin@medical.local	|Password123!	|ADMIN	         |aucune autorisation sur le dossier|
+|-----------------------|---------------|----------------|----------------------------------|
 

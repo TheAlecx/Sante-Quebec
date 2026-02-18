@@ -5,12 +5,12 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url = env("DATABASE_URL")
 }
 
 // ===============================
@@ -92,6 +92,19 @@ model Patient {
   numero_assurance String?  @unique
   telephone        String?
   adresse          String?
+  taille_cm        Int?
+  poids_kg         Float?
+  photo_url        String?
+
+  // Contact d'urgence
+  contact_urgence_nom       String?
+  contact_urgence_telephone String?
+  contact_urgence_lien      String?
+
+  // Pharmacie
+  pharmacie_nom       String?
+  pharmacie_telephone String?
+  pharmacie_adresse   String?
 
   dossier    DossierMedical?
   assurances CouvertureAssurance[]
@@ -109,12 +122,13 @@ model DossierMedical {
   patient_id String  @unique
   patient    Patient @relation(fields: [patient_id], references: [id_patient])
 
-  consultations Consultation[]
-  prescriptions Prescription[]
-  observations  ObservationMedicale[]
-  autorisations AutorisationDossier[]
-  accesUrgence  AccesUrgence[]
-  fhirMappings  FhirMapping[]
+  consultations    Consultation[]
+  prescriptions    Prescription[]
+  observations     ObservationMedicale[]
+  hospitalisations Hospitalisation[]
+  autorisations    AutorisationDossier[]
+  accesUrgence     AccesUrgence[]
+  fhirMappings     FhirMapping[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -183,6 +197,22 @@ model ObservationMedicale {
 
   cree_par String
   createur Utilisateur @relation("ObservationCreateur", fields: [cree_par], references: [id_utilisateur])
+
+  createdAt DateTime @default(now())
+}
+
+model Hospitalisation {
+  id_hospitalisation String   @id @default(uuid())
+  date_admission     DateTime
+  date_sortie        DateTime?
+  etablissement      String
+  service            String
+  motif              String
+  resume             String
+  medecin_traitant   String?
+
+  dossier_id String
+  dossier    DossierMedical @relation(fields: [dossier_id], references: [id_dossier])
 
   createdAt DateTime @default(now())
 }

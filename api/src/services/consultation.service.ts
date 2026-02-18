@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client/extension";
-
-const prisma = new PrismaClient();
+import { prisma } from "../utils/prisma";
 
 export function getByDossier(dossierId: string) {
   return prisma.consultation.findMany({

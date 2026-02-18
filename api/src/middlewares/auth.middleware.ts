@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { PrismaClient } from "@prisma/client/extension";
-
-const prisma = new PrismaClient();
+import { prisma } from "../utils/prisma";
 
 interface JwtPayload {
   userId: string;
@@ -28,7 +26,7 @@ export async function authenticate(
 
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET as string
+      process.env.JWT_SECRET_KEY as string
     ) as JwtPayload;
 
     const user = await prisma.utilisateur.findUnique({

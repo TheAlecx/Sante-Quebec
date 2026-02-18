@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
-import { PrismaClient } from "@prisma/client/extension";
-
-const prisma = new PrismaClient();
+import { checkUrgence } from "./urgence.middleware";
+import { prisma } from "../utils/prisma";
 
 export function checkPermission(
   action: "lecture" | "ajout" | "modification" | "suppression"
@@ -13,6 +12,12 @@ export function checkPermission(
 
     if (!dossierId) {
       return res.status(400).json({ message: "Dossier manquant" });
+    }
+
+    const urgenceActive = await checkUrgence(userId, dossierId);
+    if (urgenceActive) {
+      req.isUrgence = true;
+      return next();
     }
 
     const permission = await prisma.autorisationDossier.findFirst({
