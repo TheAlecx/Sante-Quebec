@@ -5,7 +5,7 @@ export async function apiFetch(
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-    const API_URL = process.env.VITE_API_URL;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const res = await fetch(`${API_URL}${url}`, {
     ...options,
