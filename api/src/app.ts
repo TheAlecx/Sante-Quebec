@@ -10,7 +10,7 @@ import hospitalisationRoutes from "./routes/hospitalisation.routes";
 
 const app = express();
 
-app.use(cors());
+app.use(cors({origin:["sante-quebec.vercel.app"],credentials:true}));
 app.use(express.json());
 app.use("/consultations", consultationRoutes);
 app.use("/obeservations", observationRoutes);
