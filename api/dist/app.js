@@ -1,0 +1,25 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const consultation_routes_1 = __importDefault(require("./routes/consultation.routes"));
+const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const observation_routes_1 = __importDefault(require("./routes/observation.routes"));
+const prescription_routes_1 = __importDefault(require("./routes/prescription.routes"));
+const urgence_routes_1 = __importDefault(require("./routes/urgence.routes"));
+const patient_routes_1 = __importDefault(require("./routes/patient.routes"));
+const hospitalisation_routes_1 = __importDefault(require("./routes/hospitalisation.routes"));
+const app = (0, express_1.default)();
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
+app.use("/consultations", consultation_routes_1.default);
+app.use("/obeservations", observation_routes_1.default);
+app.use("/auth", auth_routes_1.default);
+app.use("/prescriptions", prescription_routes_1.default);
+app.use("/urgence", urgence_routes_1.default);
+app.use("/patients", patient_routes_1.default);
+app.use("/hospitalisations", hospitalisation_routes_1.default);
+exports.default = app;
