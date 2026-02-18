@@ -132,7 +132,7 @@ npm install
 
 # Copier et configurer les variables d'environnement
 cp .env.example .env.local
-# Remplir NEXT_PUBLIC_API_URL=http://localhost:3000
+# Remplir NEXT_PUBLIC_API_URL=https://sante-quebec.vercel.app
 
 # Démarrer en développement
 npm run dev
@@ -183,7 +183,7 @@ npm test
 | Service  | Usage             | Lien                        |
 |----------|-------------------|-----------------------------|
 | Neon     | Base de données   | https://neon.tech           |
-| Railway  | Backend Express   | https://railway.app         |
+| Railway  | Backend Express   | https://vercel.com          |
 | Vercel   | Frontend Next.js  | https://vercel.com          |
 
 ### Variables d'environnement requises
@@ -198,7 +198,7 @@ NODE_ENV=production
 
 **Frontend (`web-app/`)** :
 ```
-NEXT_PUBLIC_API_URL=https://<url-railway>.up.railway.app
+NEXT_PUBLIC_API_URL=https://sante-quebec.vercel.app
 ```
 
 ---

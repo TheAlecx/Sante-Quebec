@@ -96,6 +96,55 @@ router.put("/dossier/:dossierId", checkPermission("modification"), async (req, r
   res.json(updated);
 });
 
+// Créer un nouveau patient + dossier (réservé aux professionnels de santé)
+router.post("/", async (req, res) => {
+  const allowedRoles = ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"];
+  if (!allowedRoles.includes(req.user!.role)) {
+    return res.status(403).json({ message: "Accès refusé" });
+  }
+
+  const { nom, prenom, date_naissance, sexe, numero_assurance, telephone } = req.body;
+
+  if (!nom || !prenom || !date_naissance || !sexe) {
+    return res.status(400).json({ message: "Nom, prénom, date de naissance et sexe sont obligatoires" });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const patient = await tx.patient.create({
+      data: {
+        nom,
+        prenom,
+        date_naissance: new Date(date_naissance),
+        sexe,
+        ...(numero_assurance && { numero_assurance }),
+        ...(telephone && { telephone }),
+      }
+    });
+
+    const dossier = await tx.dossierMedical.create({
+      data: {
+        patient_id: patient.id_patient,
+        etat: "ACTIF"
+      }
+    });
+
+    await tx.autorisationDossier.create({
+      data: {
+        utilisateur_id: req.user!.id,
+        dossier_id: dossier.id_dossier,
+        lecture: true,
+        ajout: true,
+        modification: true,
+        suppression: false,
+      }
+    });
+
+    return { patient, dossier };
+  });
+
+  res.status(201).json(result);
+});
+
 // Profil patient de l'utilisateur connecté
 router.get("/me", async (req, res) => {
   const userId = req.user!.id;

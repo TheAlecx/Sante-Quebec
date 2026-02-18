@@ -236,11 +236,15 @@ model AutorisationDossier {
 }
 
 model AccesUrgence {
-  id_acces   String   @id @default(uuid())
-  raison     String
-  date_debut DateTime @default(now())
-  date_fin   DateTime
-  actif      Boolean  @default(true)
+  id_acces             String    @id @default(uuid())
+  raison               String
+  date_debut           DateTime  @default(now())
+  date_fin             DateTime
+  actif                Boolean   @default(true)
+  date_ramassage       DateTime?
+  date_arrivee_hopital DateTime?
+  carte_hopital        String?
+  medications_notes    String?
 
   utilisateur_id String
   dossier_id     String
