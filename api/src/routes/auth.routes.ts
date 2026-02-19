@@ -18,7 +18,11 @@ router.post("/login", login);
 router.get("/me", authenticate, me);
 
 router.post("/register", async (req, res) => {
-  const { nom, prenom, email, password, role, numero_praticien } = req.body;
+  const {
+    nom, prenom, email, password, role, numero_praticien,
+    // Champs spécifiques aux patients
+    date_naissance, sexe, numero_assurance, telephone, adresse,
+  } = req.body;
 
   if (!nom || !prenom || !email || !password || !role) {
     return res.status(400).json({ message: "Tous les champs obligatoires doivent être remplis" });
@@ -33,6 +37,10 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ message: "Le numéro de praticien est requis pour les professionnels de santé" });
   }
 
+  if (role === "PATIENT" && (!date_naissance || !sexe)) {
+    return res.status(400).json({ message: "La date de naissance et le sexe sont requis pour un patient" });
+  }
+
   if (password.length < 8) {
     return res.status(400).json({ message: "Le mot de passe doit contenir au moins 8 caractères" });
   }
@@ -45,17 +53,48 @@ router.post("/register", async (req, res) => {
   const hash = await bcrypt.hash(password, 10);
   const isProfessional = PROFESSIONAL_ROLES.includes(role);
 
-  await prisma.utilisateur.create({
-    data: {
-      email,
-      mot_de_passe: hash,
-      nom,
-      prenom,
-      role,
-      numero_praticien: isProfessional ? numero_praticien.trim() : null,
-      // Les professionnels sont désactivés en attendant la validation d'un administrateur
-      actif: !isProfessional,
-    },
+  await prisma.$transaction(async (tx) => {
+    const utilisateur = await tx.utilisateur.create({
+      data: {
+        email,
+        mot_de_passe: hash,
+        nom,
+        prenom,
+        role,
+        numero_praticien: isProfessional ? numero_praticien.trim() : null,
+        actif: !isProfessional,
+      },
+    });
+
+    // Pour les patients : créer le dossier médical automatiquement
+    if (role === "PATIENT") {
+      const patient = await tx.patient.create({
+        data: {
+          nom,
+          prenom,
+          date_naissance: new Date(date_naissance),
+          sexe,
+          ...(numero_assurance?.trim() && { numero_assurance: numero_assurance.trim() }),
+          ...(telephone?.trim() && { telephone: telephone.trim() }),
+          ...(adresse?.trim() && { adresse: adresse.trim() }),
+        },
+      });
+
+      const dossier = await tx.dossierMedical.create({
+        data: { patient_id: patient.id_patient, etat: "ACTIF" },
+      });
+
+      await tx.autorisationDossier.create({
+        data: {
+          utilisateur_id: utilisateur.id_utilisateur,
+          dossier_id: dossier.id_dossier,
+          lecture: true,
+          ajout: false,
+          modification: false,
+          suppression: false,
+        },
+      });
+    }
   });
 
   res.status(201).json({
