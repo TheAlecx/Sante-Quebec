@@ -71,7 +71,8 @@ model Utilisateur {
   prescriptions Prescription[]        @relation("PrescriptionMedecin")
   observations  ObservationMedicale[] @relation("ObservationCreateur")
 
-  institution   String?
+  institution      String?
+  numero_praticien String?
 
   autorisations    AutorisationDossier[]
   accesUrgence     AccesUrgence[]

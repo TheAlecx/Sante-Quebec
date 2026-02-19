@@ -36,6 +36,7 @@ router.get("/:id", async (req, res) => {
       id_utilisateur: true,
       nom: true,
       prenom: true,
+      email: true,
       role: true,
       institution: true,
       createdAt: true,

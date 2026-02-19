@@ -13,6 +13,7 @@ interface MedecinProfil {
   id_utilisateur: string;
   nom: string;
   prenom: string;
+  email: string;
   role: "MEDECIN_GENERAL" | "MEDECIN_SPECIALISTE";
   institution: string | null;
   createdAt: string;
@@ -82,20 +83,43 @@ export default function MedecinProfilPage() {
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
             {medecin.prenom[0]}{medecin.nom[0]}
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">{titre}</h1>
-            <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
-              medecin.role === "MEDECIN_SPECIALISTE"
-                ? "bg-purple-100 text-purple-700"
-                : "bg-blue-100 text-blue-700"
-            }`}>
-              {getRoleLabel(medecin.role)}
-            </span>
+          <div className="flex flex-1 items-start justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{titre}</h1>
+              <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                medecin.role === "MEDECIN_SPECIALISTE"
+                  ? "bg-purple-100 text-purple-700"
+                  : "bg-blue-100 text-blue-700"
+              }`}>
+                {getRoleLabel(medecin.role)}
+              </span>
+            </div>
+            <a
+              href={`mailto:${medecin.email}`}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 hover:text-primary"
+              title={`Envoyer un courriel à ${titre}`}
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Contacter
+            </a>
           </div>
         </div>
 
         {/* Informations */}
         <div className="divide-y divide-slate-100">
+          {/* Courriel */}
+          <div className="flex items-center px-6 py-4">
+            <span className="w-40 shrink-0 text-sm font-medium text-slate-500">Courriel</span>
+            <a
+              href={`mailto:${medecin.email}`}
+              className="text-sm text-primary hover:underline"
+            >
+              {medecin.email}
+            </a>
+          </div>
+
           {/* Institution */}
           <div className="flex items-center justify-between px-6 py-4">
             <span className="w-40 shrink-0 text-sm font-medium text-slate-500">Institution</span>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import type { LoginResponse } from "@/lib/types";
 
@@ -107,6 +108,13 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+
+        <p className="mt-4 text-center text-sm text-slate-500">
+          Pas encore de compte ?{" "}
+          <Link href="/register" className="font-medium text-primary hover:underline">
+            S&apos;inscrire
+          </Link>
+        </p>
       </div>
     </div>
   );
