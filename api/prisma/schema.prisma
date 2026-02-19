@@ -252,6 +252,7 @@ model AccesUrgence {
   date_arrivee_hopital DateTime?
   carte_hopital        String?
   medications_notes    String?
+  rapport_data         Json?
 
   utilisateur_id String
   dossier_id     String

@@ -51,7 +51,8 @@ export async function activerUrgence(req: Request, res: Response) {
     date_arrivee_hopital,
     carte_hopital,
     medications_notes,
-    numero_assurance
+    numero_assurance,
+    rapport_data,
   } = req.body;
 
   if (!raison) {
@@ -84,6 +85,7 @@ export async function activerUrgence(req: Request, res: Response) {
       date_arrivee_hopital: date_arrivee_hopital ? new Date(date_arrivee_hopital) : undefined,
       carte_hopital: carte_hopital || undefined,
       medications_notes: medications_notes || undefined,
+      rapport_data: rapport_data ?? undefined,
     }
   });
 
