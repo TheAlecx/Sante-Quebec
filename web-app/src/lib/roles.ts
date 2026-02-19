@@ -3,7 +3,7 @@ import type { Role } from "./types";
 export interface MenuItem {
   label: string;
   href: string;
-  icon: "home" | "folder" | "users" | "alert" | "pill" | "settings" | "stethoscope";
+  icon: "home" | "folder" | "users" | "alert" | "pill" | "settings" | "stethoscope" | "shield";
 }
 
 export const ROLE_MENU: Record<Role, MenuItem[]> = {
@@ -44,6 +44,7 @@ export const ROLE_MENU: Record<Role, MenuItem[]> = {
     { label: "Patients", href: "/patients", icon: "users" },
     { label: "Médecins", href: "/medecins", icon: "stethoscope" },
     { label: "Urgence", href: "/urgence", icon: "alert" },
+    { label: "Administration", href: "/admin/utilisateurs", icon: "shield" },
   ],
 };
 
