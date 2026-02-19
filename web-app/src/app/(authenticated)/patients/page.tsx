@@ -42,8 +42,10 @@ export default function PatientsPage() {
   const [sexe, setSexe] = useState<"HOMME" | "FEMME">("HOMME");
   const [numeroAssurance, setNumeroAssurance] = useState("");
   const [telephone, setTelephone] = useState("");
+  const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [erreurModal, setErreurModal] = useState("");
+  const [compteCreé, setCompteCreé] = useState<{ email: string; mot_de_passe_temporaire: string } | null>(null);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} onRetry={refetch} />;
@@ -77,7 +79,9 @@ export default function PatientsPage() {
     setSexe("HOMME");
     setNumeroAssurance("");
     setTelephone("");
+    setEmail("");
     setErreurModal("");
+    setCompteCreé(null);
   }
 
   async function handleCreerPatient(e: { preventDefault(): void }) {
@@ -95,6 +99,7 @@ export default function PatientsPage() {
           sexe,
           numero_assurance: numeroAssurance || undefined,
           telephone: telephone || undefined,
+          email: email || undefined,
         }),
       });
 
@@ -103,7 +108,12 @@ export default function PatientsPage() {
         throw new Error(data.message || "Erreur lors de la création");
       }
 
-      fermerModal();
+      const data = await res.json();
+      if (data.compte) {
+        setCompteCreé(data.compte);
+      } else {
+        fermerModal();
+      }
       refetch();
     } catch (err: unknown) {
       setErreurModal(err instanceof Error ? err.message : "Erreur inconnue");
@@ -216,6 +226,26 @@ export default function PatientsPage() {
               </button>
             </div>
 
+            {compteCreé ? (
+              <div className="space-y-4 px-6 py-5">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                  <p className="font-medium text-green-800">Patient et compte créés avec succès !</p>
+                  <p className="mt-2 text-sm text-green-700">
+                    Communiquez ces informations au patient. Le mot de passe ne sera plus affiché après fermeture.
+                  </p>
+                  <div className="mt-3 space-y-1.5 rounded-md bg-white p-3 font-mono text-sm">
+                    <p><span className="text-slate-500">Courriel :</span> {compteCreé.email}</p>
+                    <p><span className="text-slate-500">Mot de passe :</span> <span className="font-semibold text-slate-900">{compteCreé.mot_de_passe_temporaire}</span></p>
+                  </div>
+                </div>
+                <button
+                  onClick={fermerModal}
+                  className="w-full rounded-lg bg-primary py-2 text-sm font-medium text-white hover:bg-primary-dark"
+                >
+                  Fermer
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleCreerPatient} className="space-y-4 px-6 py-5">
               {erreurModal && (
                 <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erreurModal}</p>
@@ -289,6 +319,20 @@ export default function PatientsPage() {
                 />
               </div>
 
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Courriel
+                  <span className="ml-1 text-xs font-normal text-slate-400">(crée un compte patient)</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Ex: patient@exemple.com"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
+                />
+              </div>
+
               <div className="flex gap-2 pt-1">
                 <button
                   type="submit"
@@ -306,6 +350,7 @@ export default function PatientsPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}

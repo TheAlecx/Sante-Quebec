@@ -71,9 +71,12 @@ model Utilisateur {
   prescriptions Prescription[]        @relation("PrescriptionMedecin")
   observations  ObservationMedicale[] @relation("ObservationCreateur")
 
-  autorisations AutorisationDossier[]
-  accesUrgence  AccesUrgence[]
-  audits        JournalAudit[]
+  institution   String?
+
+  autorisations    AutorisationDossier[]
+  accesUrgence     AccesUrgence[]
+  audits           JournalAudit[]
+  dossiersTraitant DossierMedical[] @relation("MedecinTraitant")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -120,6 +123,9 @@ model DossierMedical {
 
   patient_id String  @unique
   patient    Patient @relation(fields: [patient_id], references: [id_patient])
+
+  medecin_traitant_id String?
+  medecin_traitant    Utilisateur? @relation("MedecinTraitant", fields: [medecin_traitant_id], references: [id_utilisateur])
 
   consultations    Consultation[]
   prescriptions    Prescription[]

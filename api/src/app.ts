@@ -7,6 +7,7 @@ import prescriptionRoutes from "./routes/prescription.routes";
 import urgenceRoutes from "./routes/urgence.routes";
 import patientRoutes from "./routes/patient.routes";
 import hospitalisationRoutes from "./routes/hospitalisation.routes";
+import medecinRoutes from "./routes/medecin.routes";
 
 const app = express();
 
@@ -19,5 +20,6 @@ app.use("/prescriptions", prescriptionRoutes);
 app.use("/urgence", urgenceRoutes);
 app.use("/patients", patientRoutes);
 app.use("/hospitalisations", hospitalisationRoutes);
+app.use("/medecins", medecinRoutes);
 
 export default app;

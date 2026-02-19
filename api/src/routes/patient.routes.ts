@@ -2,6 +2,8 @@ import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware";
 import { checkPermission } from "../middlewares/permission.middleware";
 import { prisma } from "../utils/prisma";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -43,20 +45,34 @@ router.get("/dossiers", async (req, res) => {
   res.json(dossiers);
 });
 
-// Profil patient par dossier ID
+// Profil patient par dossier ID (inclut médecin traitant)
 router.get("/dossier/:dossierId", checkPermission("lecture"), async (req, res) => {
   const dossierId = req.params.dossierId as string;
 
   const dossier = await prisma.dossierMedical.findUnique({
     where: { id_dossier: dossierId },
-    include: { patient: true }
-  }) as any;
+    include: {
+      patient: true,
+      medecin_traitant: {
+        select: {
+          id_utilisateur: true,
+          nom: true,
+          prenom: true,
+          role: true,
+          institution: true,
+        }
+      }
+    }
+  });
 
   if (!dossier) {
     return res.status(404).json({ message: "Dossier non trouvé" });
   }
 
-  res.json(dossier.patient);
+  res.json({
+    ...dossier.patient,
+    medecin_traitant: dossier.medecin_traitant,
+  });
 });
 
 // Modifier le profil patient par dossier ID
@@ -96,6 +112,41 @@ router.put("/dossier/:dossierId", checkPermission("modification"), async (req, r
   res.json(updated);
 });
 
+// Assigner le médecin traitant d'un dossier
+router.put("/dossier/:dossierId/medecin-traitant", checkPermission("modification"), async (req, res) => {
+  const dossierId = req.params.dossierId as string;
+  const { medecin_traitant_id } = req.body;
+
+  const dossier = await prisma.dossierMedical.findUnique({
+    where: { id_dossier: dossierId },
+  });
+
+  if (!dossier) {
+    return res.status(404).json({ message: "Dossier non trouvé" });
+  }
+
+  if (medecin_traitant_id) {
+    const medecin = await prisma.utilisateur.findUnique({
+      where: { id_utilisateur: medecin_traitant_id },
+    });
+    if (!medecin || !["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(medecin.role)) {
+      return res.status(400).json({ message: "Médecin invalide" });
+    }
+  }
+
+  const updated = await prisma.dossierMedical.update({
+    where: { id_dossier: dossierId },
+    data: { medecin_traitant_id: medecin_traitant_id || null },
+    include: {
+      medecin_traitant: {
+        select: { id_utilisateur: true, nom: true, prenom: true, role: true, institution: true }
+      }
+    }
+  });
+
+  res.json({ medecin_traitant: updated.medecin_traitant });
+});
+
 // Créer un nouveau patient + dossier (réservé aux professionnels de santé)
 router.post("/", async (req, res) => {
   const allowedRoles = ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"];
@@ -103,11 +154,15 @@ router.post("/", async (req, res) => {
     return res.status(403).json({ message: "Accès refusé" });
   }
 
-  const { nom, prenom, date_naissance, sexe, numero_assurance, telephone } = req.body;
+  const { nom, prenom, date_naissance, sexe, numero_assurance, telephone, email } = req.body;
 
   if (!nom || !prenom || !date_naissance || !sexe) {
     return res.status(400).json({ message: "Nom, prénom, date de naissance et sexe sont obligatoires" });
   }
+
+  const motDePasseTemporaire = email
+    ? crypto.randomBytes(6).toString("hex")
+    : undefined;
 
   const result = await prisma.$transaction(async (tx) => {
     const patient = await tx.patient.create({
@@ -128,6 +183,7 @@ router.post("/", async (req, res) => {
       }
     });
 
+    // Autorisation du créateur
     await tx.autorisationDossier.create({
       data: {
         utilisateur_id: req.user!.id,
@@ -139,7 +195,34 @@ router.post("/", async (req, res) => {
       }
     });
 
-    return { patient, dossier };
+    // Compte patient si email fourni
+    let compte = null;
+    if (email && motDePasseTemporaire) {
+      const hash = await bcrypt.hash(motDePasseTemporaire, 10);
+      const utilisateur = await tx.utilisateur.create({
+        data: {
+          email,
+          mot_de_passe: hash,
+          nom,
+          prenom,
+          role: "PATIENT",
+        }
+      });
+      // Autorisation lecture seule sur son propre dossier
+      await tx.autorisationDossier.create({
+        data: {
+          utilisateur_id: utilisateur.id_utilisateur,
+          dossier_id: dossier.id_dossier,
+          lecture: true,
+          ajout: false,
+          modification: false,
+          suppression: false,
+        }
+      });
+      compte = { email, mot_de_passe_temporaire: motDePasseTemporaire };
+    }
+
+    return { patient, dossier, compte };
   });
 
   res.status(201).json(result);

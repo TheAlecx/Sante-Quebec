@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import LoadingSpinner from "@/components/loading-spinner";
 import ErrorMessage from "@/components/error-message";
@@ -23,6 +24,21 @@ interface PatientData {
   pharmacie_nom: string | null;
   pharmacie_telephone: string | null;
   pharmacie_adresse: string | null;
+  medecin_traitant: {
+    id_utilisateur: string;
+    nom: string;
+    prenom: string;
+    role: string;
+    institution: string | null;
+  } | null;
+}
+
+interface MedecinItem {
+  id_utilisateur: string;
+  nom: string;
+  prenom: string;
+  role: string;
+  institution: string | null;
 }
 
 interface Props {
@@ -31,12 +47,19 @@ interface Props {
 }
 
 export default function PatientProfile({ dossierId, canEdit }: Props) {
+  const router = useRouter();
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [editingMedecin, setEditingMedecin] = useState(false);
+  const [medecins, setMedecins] = useState<MedecinItem[]>([]);
+  const [loadingMedecins, setLoadingMedecins] = useState(false);
+  const [selectedMedecinId, setSelectedMedecinId] = useState("");
+  const [savingMedecin, setSavingMedecin] = useState(false);
 
   async function fetchPatient() {
     setLoading(true);
@@ -78,7 +101,7 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
       });
       if (!res.ok) throw new Error("Erreur lors de la sauvegarde");
       const updated = await res.json();
-      setPatient(updated);
+      setPatient({ ...updated, medecin_traitant: patient!.medecin_traitant });
       setEditingField(null);
       setEditValue("");
     } catch {
@@ -122,6 +145,37 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
 
   const bmi = getBMI();
 
+  async function startEditMedecin() {
+    setEditingMedecin(true);
+    setSelectedMedecinId(patient?.medecin_traitant?.id_utilisateur || "");
+    setLoadingMedecins(true);
+    try {
+      const res = await apiFetch("/medecins");
+      if (res.ok) {
+        const data: MedecinItem[] = await res.json();
+        setMedecins(data);
+      }
+    } finally {
+      setLoadingMedecins(false);
+    }
+  }
+
+  async function saveMedecin() {
+    setSavingMedecin(true);
+    try {
+      const res = await apiFetch(`/patients/dossier/${dossierId}/medecin-traitant`, {
+        method: "PUT",
+        body: JSON.stringify({ medecin_traitant_id: selectedMedecinId || null }),
+      });
+      if (res.ok) {
+        await fetchPatient();
+        setEditingMedecin(false);
+      }
+    } finally {
+      setSavingMedecin(false);
+    }
+  }
+
   const fields: { label: string; field: string; value: string; editable: boolean; type?: string }[] = [
     { label: "Nom", field: "nom", value: patient.nom, editable: true },
     { label: "Prenom", field: "prenom", value: patient.prenom, editable: true },
@@ -142,6 +196,7 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
     { label: "Pharmacie", field: "pharmacie_nom", value: patient.pharmacie_nom || "—", editable: true },
     { label: "Tel. pharmacie", field: "pharmacie_telephone", value: patient.pharmacie_telephone || "—", editable: true },
     { label: "Adresse pharmacie", field: "pharmacie_adresse", value: patient.pharmacie_adresse || "—", editable: true },
+    { label: "", field: "", value: "MEDECIN_SEPARATOR", editable: false },
   ];
 
   function getRawValue(field: string): string {
@@ -196,6 +251,84 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
             return (
               <div key="separator-pharmacie" className="bg-slate-50 px-6 py-2.5">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Pharmacie</span>
+              </div>
+            );
+          }
+          if (f.value === "MEDECIN_SEPARATOR") {
+            return (
+              <div key="separator-medecin">
+                <div className="bg-slate-50 px-6 py-2.5">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Médecin traitant</span>
+                </div>
+                <div className="flex items-center justify-between px-6 py-3">
+                  <span className="w-44 shrink-0 text-sm font-medium text-slate-500">Médecin</span>
+                  {editingMedecin ? (
+                    <div className="flex flex-1 items-center gap-2">
+                      {loadingMedecins ? (
+                        <span className="text-sm text-slate-400">Chargement...</span>
+                      ) : (
+                        <select
+                          value={selectedMedecinId}
+                          onChange={(e) => setSelectedMedecinId(e.target.value)}
+                          autoFocus
+                          className="flex-1 rounded-md border border-primary-light px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light/30"
+                        >
+                          <option value="">— Aucun —</option>
+                          {medecins.map((m) => (
+                            <option key={m.id_utilisateur} value={m.id_utilisateur}>
+                              {m.role === "MEDECIN_SPECIALISTE" ? "Dre" : "Dr"} {m.prenom} {m.nom}
+                              {m.institution ? ` · ${m.institution}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      <button
+                        onClick={saveMedecin}
+                        disabled={savingMedecin || loadingMedecins}
+                        className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-dark disabled:opacity-50"
+                      >
+                        {savingMedecin ? "..." : "OK"}
+                      </button>
+                      <button
+                        onClick={() => setEditingMedecin(false)}
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-1 items-center justify-between">
+                      {patient.medecin_traitant ? (
+                        <button
+                          onClick={() => router.push(`/medecins/${patient.medecin_traitant!.id_utilisateur}`)}
+                          className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                        >
+                          {patient.medecin_traitant.role === "MEDECIN_SPECIALISTE" ? "Dre" : "Dr"}{" "}
+                          {patient.medecin_traitant.prenom} {patient.medecin_traitant.nom}
+                          {patient.medecin_traitant.institution && (
+                            <span className="font-normal text-slate-500">· {patient.medecin_traitant.institution}</span>
+                          )}
+                          <svg className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <span className="text-sm italic text-slate-400">Non assigné</span>
+                      )}
+                      {canEdit && (
+                        <button
+                          onClick={startEditMedecin}
+                          className="ml-2 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                          title="Modifier le médecin traitant"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           }
