@@ -10,18 +10,33 @@ const router = Router();
 router.use(authenticate);
 
 // Liste des dossiers auxquels l'utilisateur connecté a accès
+// L'ADMIN voit tous les dossiers avec droits complets
 router.get("/dossiers", async (req, res) => {
   const userId = req.user!.id;
+  const userRole = req.user!.role;
+
+  if (userRole === "ADMIN") {
+    const tous = await prisma.dossierMedical.findMany({
+      include: { patient: true },
+      orderBy: { date_creation: "desc" },
+    });
+    return res.json(tous.map((d) => ({
+      id_dossier: d.id_dossier,
+      etat: d.etat,
+      patient: {
+        nom: d.patient.nom,
+        prenom: d.patient.prenom,
+        date_naissance: d.patient.date_naissance,
+        sexe: d.patient.sexe,
+        numero_assurance: d.patient.numero_assurance,
+      },
+      permissions: { lecture: true, ajout: true, modification: true, suppression: true },
+    })));
+  }
 
   const autorisations = await prisma.autorisationDossier.findMany({
     where: { utilisateur_id: userId, lecture: true },
-    include: {
-      dossier: {
-        include: {
-          patient: true
-        }
-      }
-    }
+    include: { dossier: { include: { patient: true } } },
   });
 
   const dossiers = autorisations.map((a) => ({
@@ -39,7 +54,7 @@ router.get("/dossiers", async (req, res) => {
       ajout: a.ajout,
       modification: a.modification,
       suppression: a.suppression,
-    }
+    },
   }));
 
   res.json(dossiers);

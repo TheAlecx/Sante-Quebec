@@ -158,4 +158,40 @@ router.delete("/users/:id", async (req, res) => {
   res.json({ message: "Compte supprimé avec succès" });
 });
 
+// ── Supprimer un patient et son dossier complet ───────────────────────────────
+router.delete("/dossiers/:dossierId", async (req, res) => {
+  const dossierId = req.params.dossierId as string;
+
+  const dossier = await prisma.dossierMedical.findUnique({
+    where: { id_dossier: dossierId },
+  });
+
+  if (!dossier) {
+    return res.status(404).json({ message: "Dossier non trouvé" });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Supprimer dans le bon ordre pour respecter les contraintes FK
+    await tx.accesUrgence.deleteMany({ where: { dossier_id: dossierId } });
+    await tx.autorisationDossier.deleteMany({ where: { dossier_id: dossierId } });
+    await tx.fhirMapping.deleteMany({ where: { dossier_id: dossierId } });
+    await tx.hospitalisation.deleteMany({ where: { dossier_id: dossierId } });
+    await tx.observationMedicale.deleteMany({ where: { dossier_id: dossierId } });
+
+    const prescriptions = await tx.prescription.findMany({ where: { dossier_id: dossierId } });
+    for (const p of prescriptions) {
+      await tx.prescriptionMedicament.deleteMany({ where: { prescription_id: p.id_prescription } });
+    }
+    await tx.prescription.deleteMany({ where: { dossier_id: dossierId } });
+    await tx.consultation.deleteMany({ where: { dossier_id: dossierId } });
+    await tx.dossierMedical.delete({ where: { id_dossier: dossierId } });
+
+    await tx.couvertureAssurance.deleteMany({ where: { patient_id: dossier.patient_id } });
+    await tx.echangeAssurance.deleteMany({ where: { patient_id: dossier.patient_id } });
+    await tx.patient.delete({ where: { id_patient: dossier.patient_id } });
+  });
+
+  res.json({ message: "Patient et dossier supprimés définitivement" });
+});
+
 export default router;

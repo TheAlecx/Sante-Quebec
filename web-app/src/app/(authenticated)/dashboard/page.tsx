@@ -70,8 +70,8 @@ export default function DashboardPage() {
         {user.role === "ADMIN" && (
           <DashCard
             title="Administration"
-            description="Gerer les utilisateurs et le systeme"
-            href="/dashboard"
+            description="Gerer les comptes et les utilisateurs"
+            href="/admin/utilisateurs"
             icon={<IconAdmin />}
             color="bg-slate-700"
           />

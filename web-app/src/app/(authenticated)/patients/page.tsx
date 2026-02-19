@@ -46,6 +46,9 @@ export default function PatientsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [erreurModal, setErreurModal] = useState("");
   const [compteCreé, setCompteCreé] = useState<{ email: string; mot_de_passe_temporaire: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DossierItem | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} onRetry={refetch} />;
@@ -82,6 +85,23 @@ export default function PatientsPage() {
     setEmail("");
     setErreurModal("");
     setCompteCreé(null);
+  }
+
+  async function handleSupprimerPatient() {
+    if (!deleteTarget) return;
+    setDeleteError("");
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`/admin/dossiers/${deleteTarget.id_dossier}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) { setDeleteError(data.message); return; }
+      setDeleteTarget(null);
+      refetch();
+    } catch {
+      setDeleteError("Erreur lors de la suppression");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleCreerPatient(e: { preventDefault(): void }) {
@@ -155,10 +175,10 @@ export default function PatientsPage() {
 
       <div className="mt-4 grid gap-3">
         {filtered.map((d) => (
-          <button
+          <div
             key={d.id_dossier}
             onClick={() => router.push(`/dossier/${d.id_dossier}`)}
-            className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-all hover:border-primary-light hover:shadow-md"
+            className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-primary-light hover:shadow-md"
           >
             <div className="flex items-center gap-4">
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
@@ -185,20 +205,30 @@ export default function PatientsPage() {
                 {d.permissions.modification && (
                   <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Modif</span>
                 )}
-                {d.permissions.suppression && (
-                  <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Suppr</span>
-                )}
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
                 d.etat === "ACTIF" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
               }`}>
                 {d.etat}
               </span>
-              <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+
+              {user?.role === "ADMIN" ? (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteTarget(d); setDeleteError(""); }}
+                  className="ml-1 rounded-md p-1.5 text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
+                  title="Supprimer ce patient"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              ) : (
+                <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
             </div>
-          </button>
+          </div>
         ))}
 
         {filtered.length === 0 && (
@@ -209,6 +239,45 @@ export default function PatientsPage() {
           </div>
         )}
       </div>
+
+      {/* Modal confirmation suppression patient */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="px-6 py-5">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-slate-900">Supprimer ce patient ?</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Le dossier de <strong>{deleteTarget.patient.prenom} {deleteTarget.patient.nom}</strong> ainsi que toutes ses données médicales (consultations, prescriptions, observations…) seront supprimés <strong>définitivement</strong>.
+              </p>
+              {deleteError && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteError(""); }}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSupprimerPatient}
+                disabled={deleting}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? "Suppression…" : "Supprimer définitivement"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal nouveau patient */}
       {modalOuvert && (
