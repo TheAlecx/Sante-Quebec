@@ -6,33 +6,43 @@ Plateforme de gestion des dossiers médicaux destinée aux professionnels de la 
 
 ## Stack technique
 
-| Couche      | Technologie                                      |
-|-------------|--------------------------------------------------|
-| Frontend    | Next.js 16, React 19, TypeScript, Tailwind CSS   |
-| Backend     | Node.js, Express 5, TypeScript                   |
-| ORM         | Prisma 7                                         |
-| Base de données | PostgreSQL (Neon)                            |
-| Auth        | JWT (jsonwebtoken + bcrypt)                      |
-| Tests       | Jest + Supertest                                 |
+| Couche          | Technologie                                          |
+|-----------------|------------------------------------------------------|
+| Web App         | Next.js 16, React 19, TypeScript, Tailwind CSS 4     |
+| App bureau      | Electron 40, Vite 7, React 19, React Router 7        |
+| Backend         | Node.js, Express 5, TypeScript                       |
+| ORM             | Prisma 7                                             |
+| Base de données | PostgreSQL (Neon)                                    |
+| Auth            | JWT (jsonwebtoken + bcrypt)                          |
+| Tests           | Jest + Supertest                                     |
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│               Santé Québec                  │
-│                                             │
-│  ┌──────────────┐       ┌────────────────┐  │
-│  │  Web App     │──────▶│   API Express  │  │
-│  │  Next.js 16  │  HTTP │   Node.js/TS   │  │
-│  └──────────────┘       └───────┬────────┘  │
-│                                 │ Prisma     │
-│                         ┌───────▼────────┐  │
-│                         │  PostgreSQL     │  │
-│                         │  (Neon)         │  │
-│                         └────────────────┘  │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│                    Santé Québec                       │
+│                                                      │
+│  ┌──────────────┐   ┌──────────────┐                 │
+│  │  Web App     │   │  App bureau  │                 │
+│  │  Next.js 16  │   │  Electron 40 │                 │
+│  │  (Vercel)    │   │  (local)     │                 │
+│  └──────┬───────┘   └──────┬───────┘                 │
+│         │  HTTPS           │  charge le web-app      │
+│         └──────────┬───────┘                         │
+│                    ▼                                 │
+│           ┌────────────────┐                         │
+│           │   API Express  │                         │
+│           │   Node.js/TS   │                         │
+│           │   (Vercel)     │                         │
+│           └───────┬────────┘                         │
+│                   │ Prisma                           │
+│           ┌───────▼────────┐                         │
+│           │  PostgreSQL     │                         │
+│           │  (Neon)         │                         │
+│           └────────────────┘                         │
+└──────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -53,42 +63,117 @@ Sante-Quebec/
 │       ├── utils/              # Prisma client, audit
 │       └── __tests__/          # Tests Jest
 │
-└── web-app/                    # Frontend Next.js
-    └── src/
-        ├── app/                # Pages (App Router)
-        ├── components/         # Composants UI
-        ├── hooks/              # Hooks personnalisés
-        └── lib/                # Client API, types, auth
+├── web-app/                    # Frontend Next.js (déployé sur Vercel)
+│   └── src/
+│       ├── app/                # Pages (App Router)
+│       ├── components/         # Composants UI
+│       ├── hooks/              # Hooks personnalisés
+│       └── lib/                # Client API, types, auth
+│
+└── desktop-app/                # Application bureau Electron
+    ├── electron/               # Processus principal Electron
+    │   └── main.ts
+    └── renderer/               # Interface React (Vite)
+        └── src/
+            ├── pages/          # Pages de l'app
+            ├── components/     # Sidebar, layout
+            └── lib/            # API, auth, types, rôles
 ```
+
+---
+
+## URLs de production
+
+| Service      | URL                                          |
+|--------------|----------------------------------------------|
+| Web App      | https://sante-quebec.vercel.app              |
+| Backend API  | https://sante-quebec-be.vercel.app           |
+| Base données | Neon PostgreSQL (via Prisma)                 |
 
 ---
 
 ## Endpoints API
 
-| Méthode | Route                       | Description                        |
-|---------|-----------------------------|------------------------------------|
-| POST    | `/auth/login`               | Connexion (retourne un JWT)        |
-| GET     | `/patients`                 | Liste des patients                 |
-| GET     | `/patients/:id`             | Détail d'un patient                |
-| GET/POST| `/consultations`            | Consultations médicales            |
-| GET/POST| `/observations`             | Observations médicales             |
-| GET/POST| `/prescriptions`            | Prescriptions                      |
-| GET/POST| `/hospitalisations`         | Hospitalisations                   |
-| POST    | `/urgence/acces`            | Accès d'urgence à un dossier       |
+### Authentification
+| Méthode | Route            | Description                          |
+|---------|------------------|--------------------------------------|
+| POST    | `/auth/login`    | Connexion — retourne un JWT (8h)     |
+| POST    | `/auth/register` | Création de compte                   |
+| GET     | `/auth/me`       | Infos de l'utilisateur connecté      |
+
+### Patients & Dossiers
+| Méthode | Route                                    | Description                        |
+|---------|------------------------------------------|------------------------------------|
+| GET     | `/patients/dossiers`                     | Dossiers accessibles               |
+| GET     | `/patients/dossier/:id`                  | Profil du patient                  |
+| PUT     | `/patients/dossier/:id`                  | Modifier le profil                 |
+| PUT     | `/patients/dossier/:id/medecin-traitant` | Assigner un médecin traitant       |
+
+### Données médicales
+| Méthode    | Route                              | Description             |
+|------------|------------------------------------|-------------------------|
+| GET / POST | `/consultations/dossier/:id`       | Consultations           |
+| GET / POST | `/observations/dossier/:id`        | Observations            |
+| GET / POST | `/prescriptions/dossier/:id`       | Prescriptions           |
+| GET / POST | `/hospitalisations/dossier/:id`    | Hospitalisations        |
+
+### Autres
+| Méthode | Route                              | Description                         |
+|---------|------------------------------------|-------------------------------------|
+| GET     | `/medecins`                        | Liste des médecins                  |
+| GET     | `/urgence/recherche/:numAssurance` | Rechercher un patient (urgence)     |
+| POST    | `/urgence/dossier/:id`             | Activer un accès d'urgence          |
+| GET     | `/admin/users`                     | Liste des comptes (ADMIN)           |
+| POST    | `/admin/users`                     | Créer un compte (ADMIN)             |
+| PUT     | `/admin/users/:id`                 | Modifier un compte (ADMIN)          |
+| DELETE  | `/admin/users/:id`                 | Supprimer un compte (ADMIN)         |
 
 ---
 
 ## Rôles et permissions
 
-| Rôle                | Lecture | Ajout | Modification | Suppression |
-|---------------------|:-------:|:-----:|:------------:|:-----------:|
-| MEDECIN_GENERAL     | ✅      | ✅    | ✅           | ❌          |
-| MEDECIN_SPECIALISTE | ✅      | ✅    | ✅           | ❌          |
-| INFIRMIER           | ✅      | ✅    | ❌           | ❌          |
-| PHARMACIEN          | ✅      | ❌    | ❌           | ❌          |
-| AMBULANCIER         | ✅ (urgence) | ❌ | ❌          | ❌          |
-| PATIENT             | ✅      | ❌    | ❌           | ❌          |
-| ADMIN               | ❌      | ❌    | ❌           | ❌          |
+| Rôle                | Dossiers | Consultations | Observations | Prescriptions | Urgence | Admin |
+|---------------------|:--------:|:-------------:|:------------:|:-------------:|:-------:|:-----:|
+| MEDECIN_GENERAL     | R / W    | R / W         | R / W        | R / W         | ✅      | ❌    |
+| MEDECIN_SPECIALISTE | R / W    | R / W         | R / W        | R / W         | ✅      | ❌    |
+| INFIRMIER           | R        | R             | R / W        | R             | ❌      | ❌    |
+| PHARMACIEN          | R        | R             | R            | R             | ❌      | ❌    |
+| AMBULANCIER         | ❌       | ❌            | ❌           | ❌            | ✅      | ❌    |
+| PATIENT             | R (sien) | R             | ❌           | R             | ❌      | ❌    |
+| ADMIN               | ❌       | ❌            | ❌           | ❌            | ✅      | ✅    |
+
+> R = Lecture, W = Écriture
+
+---
+
+## Comptes de test (seed)
+
+Tous les comptes ont le mot de passe : **`Password123!`**
+
+> Les emails sont insensibles à la casse (ex: `Admin@Sante-Quebec.LOCAL` fonctionne).
+
+### Professionnels de santé
+
+| Email                                    | Nom               | Rôle                |
+|------------------------------------------|-------------------|---------------------|
+| `admin@sante-quebec.local`               | Pierre Gagnon     | ADMIN               |
+| `jean.tremblay@sante-quebec.local`       | Dr Jean Tremblay  | MEDECIN_GENERAL     |
+| `sophie.lavoie@sante-quebec.local`       | Dre Sophie Lavoie | MEDECIN_SPECIALISTE |
+| `david.chen@sante-quebec.local`          | Dr David Chen     | MEDECIN_GENERAL     |
+| `marie.roy@sante-quebec.local`           | Marie Roy         | INFIRMIER           |
+| `luc.bouchard@sante-quebec.local`        | Luc Bouchard      | INFIRMIER           |
+| `anne.girard@sante-quebec.local`         | Anne Girard       | PHARMACIEN          |
+| `marc.pelletier@sante-quebec.local`      | Marc Pelletier    | AMBULANCIER         |
+
+### Comptes patients (quelques exemples)
+
+| Email                              | Nom               |
+|------------------------------------|-------------------|
+| `luc.gagné@patient.local`          | Luc Gagné         |
+| `suzanne.bélanger@patient.local`   | Suzanne Bélanger  |
+| `michel.côté@patient.local`        | Michel Côté       |
+| `isabelle.fortin@patient.local`    | Isabelle Fortin   |
+| `rené.ouellet@patient.local`       | René Ouellet      |
 
 ---
 
@@ -97,7 +182,7 @@ Sante-Quebec/
 ### Prérequis
 - Node.js 20+
 - npm
-- Une base de données PostgreSQL (ou un compte [Neon](https://neon.tech))
+- Un compte [Neon](https://neon.tech) (ou PostgreSQL local)
 
 ### 1. Cloner le projet
 ```bash
@@ -110,62 +195,44 @@ cd Sante-Quebec
 cd api
 npm install
 
-# Copier et configurer les variables d'environnement
+# Configurer les variables d'environnement
 cp .env.example .env
-# Remplir DATABASE_URL, JWT_SECRET_KEY, PORT dans .env
+# Remplir DATABASE_URL et JWT_SECRET_KEY dans .env
 
-# Appliquer les migrations et générer le client Prisma
-npx prisma migrate dev
+# Synchroniser le schéma et générer le client Prisma
+npx prisma db push
 npx prisma generate
 
-# (Optionnel) Charger les données de test
+# Charger les données de test
 npm run prisma:seed
 
 # Démarrer en développement
 npm run dev
 ```
 
-### 3. Frontend
+### 3. Web App
 ```bash
 cd web-app
 npm install
 
-# Copier et configurer les variables d'environnement
-cp .env.example .env.local
-# Remplir NEXT_PUBLIC_API_URL=https://sante-quebec.vercel.app
+# Configurer la variable d'environnement
+echo "NEXT_PUBLIC_API_URL=https://sante-quebec-be.vercel.app" > .env
 
 # Démarrer en développement
 npm run dev
 ```
 
----
+### 4. App bureau (Electron)
+```bash
+cd desktop-app
+npm install
 
-## Comptes de test (seed)
+# Compiler et lancer
+npm run build:electron
+npm start
+```
 
-Tous les comptes ont le mot de passe : **`Password123!`**
-
-### Professionnels de santé
-
-| Email                                    | Nom               | Rôle                | Accès dossiers         |
-|------------------------------------------|-------------------|---------------------|------------------------|
-| `jean.tremblay@sante-quebec.local`       | Dr Jean Tremblay  | MEDECIN_GENERAL     | 20 patients            |
-| `sophie.lavoie@sante-quebec.local`       | Dre Sophie Lavoie | MEDECIN_SPECIALISTE | 10 patients            |
-| `david.chen@sante-quebec.local`          | Dr David Chen     | MEDECIN_GENERAL     | 12 patients            |
-| `marie.roy@sante-quebec.local`           | Marie Roy         | INFIRMIER           | 20 patients            |
-| `luc.bouchard@sante-quebec.local`        | Luc Bouchard      | INFIRMIER           | 10 patients            |
-| `anne.girard@sante-quebec.local`         | Anne Girard       | PHARMACIEN          | Lecture seule (tous)   |
-| `marc.pelletier@sante-quebec.local`      | Marc Pelletier    | AMBULANCIER         | Accès urgence          |
-| `admin@sante-quebec.local`               | Pierre Gagnon     | ADMIN               | Aucun dossier          |
-
-### Comptes patients
-
-| Email                              | Nom               | Rôle    |
-|------------------------------------|-------------------|---------|
-| `luc.gagné@patient.local`          | Luc Gagné         | PATIENT |
-| `suzanne.bélanger@patient.local`   | Suzanne Bélanger  | PATIENT |
-| `michel.côté@patient.local`        | Michel Côté       | PATIENT |
-| `isabelle.fortin@patient.local`    | Isabelle Fortin   | PATIENT |
-| `rené.ouellet@patient.local`       | René Ouellet      | PATIENT |
+> L'app bureau charge directement `https://sante-quebec.vercel.app` — aucune configuration supplémentaire requise.
 
 ---
 
@@ -180,11 +247,11 @@ npm test
 
 ## Déploiement
 
-| Service  | Usage             | Lien                        |
-|----------|-------------------|-----------------------------|
-| Neon     | Base de données   | https://neon.tech           |
-| Railway  | Backend Express   | https://vercel.com          |
-| Vercel   | Frontend Next.js  | https://vercel.com          |
+| Service  | Usage             | URL de production                        |
+|----------|-------------------|------------------------------------------|
+| Vercel   | Backend Express   | https://sante-quebec-be.vercel.app       |
+| Vercel   | Frontend Next.js  | https://sante-quebec.vercel.app          |
+| Neon     | Base de données   | https://neon.tech                        |
 
 ### Variables d'environnement requises
 
@@ -192,22 +259,23 @@ npm test
 ```
 DATABASE_URL=postgresql://...
 JWT_SECRET_KEY=...
-PORT=3000
 NODE_ENV=production
 ```
 
 **Frontend (`web-app/`)** :
 ```
-NEXT_PUBLIC_API_URL=https://sante-quebec.vercel.app
+NEXT_PUBLIC_API_URL=https://sante-quebec-be.vercel.app
 ```
 
 ---
 
 ## Sécurité
 
-- Authentification JWT sur toutes les routes protégées
+- Authentification JWT sur toutes les routes protégées (expiration 8h)
 - Hash des mots de passe avec bcrypt
 - Contrôle d'accès par rôle (RBAC) via middleware
+- Emails normalisés en minuscules (insensible à la casse)
 - Journal d'audit pour toutes les actions sur les dossiers (`JournalAudit`)
-- Accès d'urgence traçable avec date de début/fin (`AccesUrgence`)
-- Ne jamais committer le fichier `.env` — utiliser des variables d'environnement sur le serveur
+- Accès d'urgence traçable avec horodatage (`AccesUrgence`)
+- CORS restreint à `https://sante-quebec.vercel.app`
+- Ne jamais committer le fichier `.env`
