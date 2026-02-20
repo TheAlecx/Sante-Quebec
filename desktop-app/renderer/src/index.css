@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-primary: #1e40af;
+  --color-primary-light: #3b82f6;
+  --color-primary-dark: #1e3a8a;
+  --color-accent: #059669;
+  --color-accent-light: #10b981;
+  --color-danger: #dc2626;
+  --color-danger-light: #ef4444;
+  --color-warning: #d97706;
+  --color-sidebar: #1e293b;
+  --color-sidebar-hover: #334155;
+  --color-sidebar-active: #1e40af;
+}
+
+body {
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: system-ui, sans-serif;
+}

@@ -18,12 +18,13 @@ router.post("/login", login);
 router.get("/me", authenticate, me);
 
 router.post("/register", async (req, res) => {
-  const {
+  let {
     nom, prenom, email, password, role, numero_praticien,
     // Champs spécifiques aux patients
     date_naissance, sexe, numero_assurance, telephone, adresse,
   } = req.body;
 
+  email = email?.toLowerCase();
   if (!nom || !prenom || !email || !password || !role) {
     return res.status(400).json({ message: "Tous les champs obligatoires doivent être remplis" });
   }

@@ -3,7 +3,7 @@ import bcrypt from 'bcrypt';
 import { prisma } from "../utils/prisma";
 
 export async function login(email: string, password: string) {
-    const user = await prisma.utilisateur.findUnique({ where: { email } });
+    const user = await prisma.utilisateur.findUnique({ where: { email: email.toLowerCase() } });
     if (!user) {
         throw new Error('utilisateur non trouvé');
     };
