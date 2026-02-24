@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 
+
 interface MedicamentInput {
   nom: string;
   dosage: string;
@@ -65,19 +66,11 @@ function MedicamentField({
     timerRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(
-          `https://health-products.canada.ca/api/drug/drugproduct/?brandname=${encodeURIComponent(value)}&lang=fr&type=json`
-        );
+        const res = await apiFetch(`/medicaments/recherche?q=${encodeURIComponent(value.trim())}`);
         if (res.ok) {
           const data: DrugSuggestion[] = await res.json();
-          // Garder seulement les médicaments humains, max 8 résultats
-          const filtered = data
-            .filter((d): d is DrugSuggestion & { class: string } =>
-              "class" in d ? (d as { class: string }).class === "Human" : true
-            )
-            .slice(0, 8);
-          setSuggestions(filtered);
-          setShowDrop(filtered.length > 0);
+          setSuggestions(data);
+          setShowDrop(data.length > 0);
         }
       } catch {
         // API indisponible — saisie manuelle seulement
@@ -163,7 +156,7 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
     setMedicaments(medicaments.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError("");

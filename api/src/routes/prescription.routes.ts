@@ -34,11 +34,7 @@ router.put(
   updatePrescription
 );
 
-// Supprimer
-router.delete(
-  "/:id",
-  checkPermission("suppression"),
-  deletePrescription
-);
+// Supprimer (la vérification de permission est faite dans le contrôleur)
+router.delete("/:id", deletePrescription);
 
 export default router;
