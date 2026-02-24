@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { getRoleLabel } from "@/lib/roles";
 import type { Role } from "@/lib/types";
+import EtablissementAutocomplete from "@/components/ui/etablissement-autocomplete";
 
 interface CompteUtilisateur {
   id_utilisateur: string;
@@ -370,7 +371,11 @@ export default function AdminUtilisateursPage() {
                 <>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-slate-700">Institution</label>
-                    <input name="institution" value={form.institution} onChange={handleFormChange} placeholder="Nom de l'établissement" className={INPUT} />
+                    <EtablissementAutocomplete
+                      value={form.institution}
+                      onChange={(val) => setForm((prev) => ({ ...prev, institution: val }))}
+                      className={INPUT}
+                    />
                   </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium text-slate-700">Numéro de praticien</label>

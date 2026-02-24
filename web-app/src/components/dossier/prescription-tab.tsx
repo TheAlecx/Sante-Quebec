@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useApi } from "@/hooks/use-api";
 import { apiFetch } from "@/lib/api";
-import { canAddPrescription, canDelete } from "@/lib/roles";
+import { canAddPrescription, canDelete, canModify } from "@/lib/roles";
 import type { Prescription } from "@/lib/types";
 import PrescriptionForm from "./prescription-form";
+import PrescriptionEditForm from "./prescription-edit-form";
 import LoadingSpinner from "@/components/loading-spinner";
 import ErrorMessage from "@/components/error-message";
 
@@ -16,6 +17,7 @@ export default function PrescriptionTab({ dossierId }: { dossierId: string }) {
     `/prescriptions/dossier/${dossierId}`
   );
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   async function handleDelete(id: string) {
     if (!confirm("Supprimer cette prescription ?")) return;
@@ -54,38 +56,56 @@ export default function PrescriptionTab({ dossierId }: { dossierId: string }) {
       <div className="space-y-3">
         {data?.map((p) => (
           <div key={p.id_prescription} className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">
-                  {new Date(p.date).toLocaleDateString("fr-CA")}
-                </p>
-                {p.instructions && (
-                  <p className="mt-1 text-sm text-slate-700">{p.instructions}</p>
-                )}
-                <div className="mt-3 space-y-1">
-                  <p className="text-xs font-medium text-slate-500 uppercase">Medicaments</p>
-                  {p.medicaments.map((pm) => (
-                    <div
-                      key={pm.medicament_id}
-                      className="flex items-center gap-2 rounded bg-slate-50 px-3 py-1.5 text-sm"
+            {editingId === p.id_prescription ? (
+              <PrescriptionEditForm
+                prescription={p}
+                onDone={() => { setEditingId(null); refetch(); }}
+                onCancel={() => setEditingId(null)}
+              />
+            ) : (
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="text-xs text-slate-400">
+                    {new Date(p.date).toLocaleDateString("fr-CA")}
+                  </p>
+                  {p.instructions && (
+                    <p className="mt-1 text-sm text-slate-700">{p.instructions}</p>
+                  )}
+                  <div className="mt-3 space-y-1">
+                    <p className="text-xs font-medium text-slate-500 uppercase">Médicaments</p>
+                    {p.medicaments.map((pm) => (
+                      <div
+                        key={pm.medicament_id}
+                        className="flex items-center gap-2 rounded bg-slate-50 px-3 py-1.5 text-sm"
+                      >
+                        <span className="font-medium text-slate-800">{pm.medicament.nom}</span>
+                        {pm.medicament.dosage && (
+                          <span className="text-slate-500">— {pm.medicament.dosage}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-3 pl-4">
+                  {user && canModify(user.role) && (
+                    <button
+                      onClick={() => { setShowForm(false); setEditingId(p.id_prescription); }}
+                      className="text-xs text-primary hover:text-primary-dark"
                     >
-                      <span className="font-medium text-slate-800">{pm.medicament.nom}</span>
-                      {pm.medicament.dosage && (
-                        <span className="text-slate-500">— {pm.medicament.dosage}</span>
-                      )}
-                    </div>
-                  ))}
+                      Modifier
+                    </button>
+                  )}
+                  {user && canDelete(user.role) && (
+                    <button
+                      onClick={() => handleDelete(p.id_prescription)}
+                      className="text-xs text-danger hover:text-danger-light"
+                    >
+                      Supprimer
+                    </button>
+                  )}
                 </div>
               </div>
-              {user && canDelete(user.role) && (
-                <button
-                  onClick={() => handleDelete(p.id_prescription)}
-                  className="text-xs text-danger hover:text-danger-light"
-                >
-                  Supprimer
-                </button>
-              )}
-            </div>
+            )}
           </div>
         ))}
       </div>

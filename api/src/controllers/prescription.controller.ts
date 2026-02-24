@@ -28,13 +28,36 @@ export async function createPrescription(req: Request, res: Response) {
 
 export async function updatePrescription(req: Request, res: Response) {
   const { id } = req.params;
-  const { instructions } = req.body;
+  const prescriptionId = Array.isArray(id) ? id[0] : id;
+  const { instructions, medicaments } = req.body;
 
-  const prescription = await prescriptionService.update(Array.isArray(id) ? id[0] : id, { instructions });
+  const prescription = await prisma.prescription.findUnique({
+    where: { id_prescription: prescriptionId },
+    select: { dossier_id: true },
+  });
 
-  await logAudit(req, "MODIFICATION", "Prescription", Array.isArray(id) ? id[0] : id);
+  if (!prescription) {
+    return res.status(404).json({ message: "Prescription non trouvée" });
+  }
 
-  res.json(prescription);
+  if (req.user!.role !== "ADMIN") {
+    const perm = await prisma.autorisationDossier.findFirst({
+      where: {
+        utilisateur_id: req.user!.id,
+        dossier_id: prescription.dossier_id,
+        modification: true,
+      },
+    });
+    if (!perm) {
+      return res.status(403).json({ message: "Accès refusé" });
+    }
+  }
+
+  const updated = await prescriptionService.update(prescriptionId, { instructions, medicaments });
+
+  await logAudit(req, "MODIFICATION", "Prescription", prescriptionId);
+
+  res.json(updated);
 }
 
 export async function deletePrescription(req: Request, res: Response) {

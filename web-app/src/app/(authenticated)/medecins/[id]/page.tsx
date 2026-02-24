@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/api";
 import { getRoleLabel } from "@/lib/roles";
 import LoadingSpinner from "@/components/loading-spinner";
 import ErrorMessage from "@/components/error-message";
+import EtablissementAutocomplete from "@/components/ui/etablissement-autocomplete";
 
 interface MedecinProfil {
   id_utilisateur: string;
@@ -125,10 +126,9 @@ export default function MedecinProfilPage() {
             <span className="w-40 shrink-0 text-sm font-medium text-slate-500">Institution</span>
             {editingInstitution ? (
               <div className="flex flex-1 items-center gap-2">
-                <input
+                <EtablissementAutocomplete
                   value={institutionValue}
-                  onChange={(e) => setInstitutionValue(e.target.value)}
-                  placeholder="Nom de l'établissement"
+                  onChange={setInstitutionValue}
                   autoFocus
                   className="flex-1 rounded-md border border-primary-light px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light/30"
                 />

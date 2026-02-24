@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 
 
-interface MedicamentInput {
+export interface MedicamentInput {
   nom: string;
   dosage: string;
 }
@@ -20,11 +20,11 @@ interface Props {
   onCancel: () => void;
 }
 
-function toTitleCase(str: string) {
+export function toTitleCase(str: string) {
   return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function MedicamentField({
+export function MedicamentField({
   med,
   total,
   onChange,

@@ -27,12 +27,8 @@ router.post(
   createPrescription
 );
 
-// Modifier
-router.put(
-  "/:id",
-  checkPermission("modification"),
-  updatePrescription
-);
+// Modifier (la vérification de permission est faite dans le contrôleur)
+router.put("/:id", updatePrescription);
 
 // Supprimer (la vérification de permission est faite dans le contrôleur)
 router.delete("/:id", deletePrescription);
