@@ -205,6 +205,7 @@ export default function UrgencePage() {
   const [patientTrouve, setPatientTrouve] = useState<PatientTrouve | null>(null);
   const [patientNonTrouve, setPatientNonTrouve] = useState(false);
   const [dossierId, setDossierId] = useState("");
+  const [modeManuel, setModeManuel] = useState(false);
   const [formulaireVisible, setFormulaireVisible] = useState(false);
 
   const now = new Date();
@@ -246,6 +247,8 @@ export default function UrgencePage() {
     setPatientTrouve(null);
     setPatientNonTrouve(false);
     setFormulaireVisible(false);
+    setModeManuel(false);
+    setDossierId("");
     setError("");
     try {
       const res = await apiFetch(`/urgence/recherche/${encodeURIComponent(numeroAssurance.trim())}`);
@@ -263,6 +266,8 @@ export default function UrgencePage() {
   function handleContinuerSansPatient() {
     setPatientNonTrouve(false);
     setNumAssuranceSaisie(numeroAssurance);
+    setDossierId(crypto.randomUUID());
+    setModeManuel(true);
     setFormulaireVisible(true);
   }
 
@@ -428,9 +433,17 @@ export default function UrgencePage() {
                 </div>
                 {!patientTrouve && (
                   <div className="col-span-2">
-                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Identifiant du dossier *</label>
-                    <input value={dossierId} onChange={e => setDossierId(e.target.value)} required placeholder="UUID du dossier"
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Identifiant de dossier temporaire
+                    </label>
+                    <input
+                      value={dossierId}
+                      readOnly
+                      className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 font-mono text-sm text-slate-500 cursor-not-allowed"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      Généré automatiquement — un dossier anonyme sera créé pour cette intervention
+                    </p>
                   </div>
                 )}
                 <div>

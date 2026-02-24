@@ -61,18 +61,35 @@ export async function activerUrgence(req: Request, res: Response) {
 
   const dateFin = new Date(Date.now() + (dureeMinutes || 60) * 60000);
 
-  // Mise à jour du numéro d'assurance si fourni et non déjà enregistré
-  if (numero_assurance) {
-    const dossier = await prisma.dossierMedical.findUnique({
-      where: { id_dossier: dossierId },
-      include: { patient: true }
+  // Vérifier si le dossier existe ; sinon, créer un patient/dossier anonyme (mode manuel)
+  const dossierExistant = await prisma.dossierMedical.findUnique({
+    where: { id_dossier: dossierId },
+    include: { patient: true },
+  });
+
+  if (!dossierExistant) {
+    const patientAnonyme = await prisma.patient.create({
+      data: {
+        nom: "Non identifié",
+        prenom: "Patient",
+        date_naissance: new Date(),
+        sexe: "INCONNU",
+        numero_assurance: numero_assurance || null,
+      },
     });
-    if (dossier && !dossier.patient.numero_assurance) {
-      await prisma.patient.update({
-        where: { id_patient: dossier.patient_id },
-        data: { numero_assurance }
-      });
-    }
+    await prisma.dossierMedical.create({
+      data: {
+        id_dossier: dossierId,
+        patient_id: patientAnonyme.id_patient,
+        etat: "ACTIF",
+      },
+    });
+  } else if (numero_assurance && !dossierExistant.patient.numero_assurance) {
+    // Mise à jour du numéro d'assurance si fourni et non déjà enregistré
+    await prisma.patient.update({
+      where: { id_patient: dossierExistant.patient_id },
+      data: { numero_assurance },
+    });
   }
 
   const acces = await prisma.accesUrgence.create({
