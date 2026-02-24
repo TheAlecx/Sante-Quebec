@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 
 interface MedicamentInput {
@@ -8,10 +8,139 @@ interface MedicamentInput {
   dosage: string;
 }
 
+interface DrugSuggestion {
+  drug_code: number;
+  brand_name: string;
+}
+
 interface Props {
   dossierId: string;
   onDone: () => void;
   onCancel: () => void;
+}
+
+function toTitleCase(str: string) {
+  return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function MedicamentField({
+  med,
+  total,
+  onChange,
+  onRemove,
+}: {
+  med: MedicamentInput;
+  total: number;
+  onChange: (field: keyof MedicamentInput, value: string) => void;
+  onRemove: () => void;
+}) {
+  const [suggestions, setSuggestions] = useState<DrugSuggestion[]>([]);
+  const [showDrop, setShowDrop] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Fermer le dropdown si clic en dehors
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowDrop(false);
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  function handleNomChange(value: string) {
+    onChange("nom", value);
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (value.trim().length < 2) {
+      setSuggestions([]);
+      setShowDrop(false);
+      return;
+    }
+
+    timerRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(
+          `https://health-products.canada.ca/api/drug/drugproduct/?brandname=${encodeURIComponent(value)}&lang=fr&type=json`
+        );
+        if (res.ok) {
+          const data: DrugSuggestion[] = await res.json();
+          // Garder seulement les médicaments humains, max 8 résultats
+          const filtered = data
+            .filter((d): d is DrugSuggestion & { class: string } =>
+              "class" in d ? (d as { class: string }).class === "Human" : true
+            )
+            .slice(0, 8);
+          setSuggestions(filtered);
+          setShowDrop(filtered.length > 0);
+        }
+      } catch {
+        // API indisponible — saisie manuelle seulement
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+  }
+
+  function selectSuggestion(drug: DrugSuggestion) {
+    onChange("nom", toTitleCase(drug.brand_name));
+    setSuggestions([]);
+    setShowDrop(false);
+  }
+
+  return (
+    <div className="flex gap-2">
+      <div ref={wrapperRef} className="relative flex-1">
+        <input
+          value={med.nom}
+          onChange={(e) => handleNomChange(e.target.value)}
+          onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+          placeholder="Nom du médicament"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
+          autoComplete="off"
+        />
+        {searching && (
+          <span className="absolute right-2 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        )}
+        {showDrop && (
+          <ul className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+            {suggestions.map((d) => (
+              <li key={d.drug_code}>
+                <button
+                  type="button"
+                  onMouseDown={() => selectSuggestion(d)}
+                  className="w-full px-3 py-2 text-left text-sm text-slate-800 hover:bg-primary/5 hover:text-primary"
+                >
+                  {toTitleCase(d.brand_name)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <input
+        value={med.dosage}
+        onChange={(e) => onChange("dosage", e.target.value)}
+        placeholder="Dosage"
+        className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
+      />
+      {total > 1 && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-red-400 hover:text-red-600"
+          title="Retirer"
+        >
+          &times;
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props) {
@@ -31,18 +160,17 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
   }
 
   function removeMedicament(index: number) {
-    if (medicaments.length <= 1) return;
     setMedicaments(medicaments.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError("");
 
     const validMeds = medicaments.filter((m) => m.nom.trim());
     if (validMeds.length === 0) {
-      setError("Ajoutez au moins un medicament");
+      setError("Ajoutez au moins un médicament.");
       setSubmitting(false);
       return;
     }
@@ -59,10 +187,10 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
         }),
       });
 
-      if (!res.ok) throw new Error("Erreur lors de la sauvegarde");
+      if (!res.ok) throw new Error();
       onDone();
     } catch {
-      setError("Erreur lors de la sauvegarde");
+      setError("Erreur lors de la sauvegarde.");
     } finally {
       setSubmitting(false);
     }
@@ -81,37 +209,25 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
+            placeholder="Ex. : Prendre 1 comprimé le matin avec de l'eau"
+            className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">Medicaments *</label>
+          <label className="mb-2 block text-sm font-medium text-slate-700">
+            Médicaments *
+            <span className="ml-2 text-xs font-normal text-slate-400">— commencez à taper pour rechercher dans la base Santé Canada</span>
+          </label>
           <div className="space-y-2">
             {medicaments.map((med, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={med.nom}
-                  onChange={(e) => updateMedicament(i, "nom", e.target.value)}
-                  placeholder="Nom du medicament"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
-                />
-                <input
-                  value={med.dosage}
-                  onChange={(e) => updateMedicament(i, "dosage", e.target.value)}
-                  placeholder="Dosage"
-                  className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
-                />
-                {medicaments.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeMedicament(i)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    &times;
-                  </button>
-                )}
-              </div>
+              <MedicamentField
+                key={i}
+                med={med}
+                total={medicaments.length}
+                onChange={(field, value) => updateMedicament(i, field, value)}
+                onRemove={() => removeMedicament(i)}
+              />
             ))}
           </div>
           <button
@@ -119,7 +235,7 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
             onClick={addMedicament}
             className="mt-2 text-sm font-medium text-primary hover:text-primary-dark"
           >
-            + Ajouter un medicament
+            + Ajouter un médicament
           </button>
         </div>
 
@@ -129,9 +245,13 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
             disabled={submitting}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            {submitting ? "Sauvegarde..." : "Sauvegarder"}
+            {submitting ? "Sauvegarde…" : "Sauvegarder"}
           </button>
-          <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+          >
             Annuler
           </button>
         </div>
