@@ -3,6 +3,25 @@ import { authenticate } from "../middlewares/auth.middleware";
 import { prisma } from "../utils/prisma";
 import bcrypt from "bcrypt";
 
+const PROFESSIONAL_ROLES = ["INFIRMIER", "AMBULANCIER", "PHARMACIEN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"];
+const CAN_WRITE = ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"];
+const CAN_MODIFY = ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"];
+
+async function grantAccessToAllDossiers(userId: string, role: string) {
+  const dossiers = await prisma.dossierMedical.findMany({ select: { id_dossier: true } });
+  await prisma.autorisationDossier.createMany({
+    data: dossiers.map((d) => ({
+      utilisateur_id: userId,
+      dossier_id: d.id_dossier,
+      lecture: true,
+      ajout: CAN_WRITE.includes(role),
+      modification: CAN_MODIFY.includes(role),
+      suppression: false,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 const router = Router();
 
 // Toutes ces routes sont réservées aux administrateurs
@@ -67,6 +86,8 @@ router.post("/users", async (req, res) => {
 
   const hash = await bcrypt.hash(password, 10);
 
+  const isActif = actif !== undefined ? actif : true;
+
   const user = await prisma.utilisateur.create({
     data: {
       email,
@@ -76,10 +97,14 @@ router.post("/users", async (req, res) => {
       role,
       institution: institution?.trim() || null,
       numero_praticien: numero_praticien?.trim() || null,
-      actif: actif !== undefined ? actif : true,
+      actif: isActif,
     },
     select: USER_SELECT,
   });
+
+  if (isActif && PROFESSIONAL_ROLES.includes(role)) {
+    await grantAccessToAllDossiers(user.id_utilisateur, role);
+  }
 
   res.status(201).json(user);
 });
@@ -120,6 +145,12 @@ router.put("/users/:id", async (req, res) => {
     data: updateData,
     select: USER_SELECT,
   });
+
+  // Si un professionnel vient d'être activé, lui donner accès à tous les dossiers existants
+  const vientDEtreActive = actif === true && existing.actif === false;
+  if (vientDEtreActive && PROFESSIONAL_ROLES.includes(updated.role)) {
+    await grantAccessToAllDossiers(id, updated.role);
+  }
 
   res.json(updated);
 });

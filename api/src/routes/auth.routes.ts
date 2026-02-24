@@ -85,6 +85,7 @@ router.post("/register", async (req, res) => {
         data: { patient_id: patient.id_patient, etat: "ACTIF" },
       });
 
+      // Autorisation lecture seule pour le patient lui-même
       await tx.autorisationDossier.create({
         data: {
           utilisateur_id: utilisateur.id_utilisateur,
@@ -94,6 +95,25 @@ router.post("/register", async (req, res) => {
           modification: false,
           suppression: false,
         },
+      });
+
+      // Autorisations pour tous les professionnels actifs existants
+      const professionnels = await tx.utilisateur.findMany({
+        where: { role: { in: PROFESSIONAL_ROLES }, actif: true },
+        select: { id_utilisateur: true, role: true },
+      });
+
+      const canWrite = ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"];
+
+      await tx.autorisationDossier.createMany({
+        data: professionnels.map((p) => ({
+          utilisateur_id: p.id_utilisateur,
+          dossier_id: dossier.id_dossier,
+          lecture: true,
+          ajout: canWrite.includes(p.role),
+          modification: ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(p.role),
+          suppression: false,
+        })),
       });
     }
   });
