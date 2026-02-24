@@ -1,3 +1,7 @@
+# Projet Alexandre Leblanc #
+Plateforme de partage d'information médical étandu sur tout le réseau médical du québec
+Github : [TheAlecx/](https://github.com/TheAlecx/Sante-Quebec)
+
 # Santé Québec — Système d'information médical
 
 Plateforme de gestion des dossiers médicaux destinée aux professionnels de la santé du Québec. Elle permet la consultation, la création et la gestion de dossiers patients, consultations, prescriptions, observations médicales et hospitalisations, avec un contrôle d'accès basé sur les rôles.

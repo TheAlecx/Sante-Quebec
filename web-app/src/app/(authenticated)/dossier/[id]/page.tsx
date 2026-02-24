@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import PatientProfile from "@/components/dossier/patient-profile";
 import ConsultationTab from "@/components/dossier/consultation-tab";
 import ObservationTab from "@/components/dossier/observation-tab";
@@ -30,12 +30,31 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function DossierPage() {
   const params = useParams();
-  const dossierId = params.id as string;
+  const router = useRouter();
+  const rawId = params.id as string;
+  const [dossierId, setDossierId] = useState<string | null>(rawId === "me" ? null : rawId);
   const [activeTab, setActiveTab] = useState<Tab>("profil");
   const { user } = useAuth();
 
+  useEffect(() => {
+    if (rawId !== "me") return;
+    apiFetch("/patients/dossiers")
+      .then(r => r.ok ? r.json() : [])
+      .then((dossiers: { id_dossier: string }[]) => {
+        if (dossiers.length > 0) {
+          router.replace(`/dossier/${dossiers[0].id_dossier}`);
+        }
+      });
+  }, [rawId, router]);
+
   const userCanEdit = user ? canModify(user.role) : false;
   const peutRefer = user?.role === "MEDECIN_GENERAL";
+
+  if (!dossierId) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
 
   // ── Référence spécialiste ─────────────────────────────────────────────────
   const [referModal, setReferModal] = useState(false);
