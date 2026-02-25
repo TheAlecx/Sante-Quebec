@@ -39,6 +39,7 @@ export function MedicamentField({
   const [showDrop, setShowDrop] = useState(false);
   const [searching, setSearching] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Fermer le dropdown si clic en dehors
@@ -52,10 +53,20 @@ export function MedicamentField({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // Nettoyer timer et requête en cours au démontage
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
+
   function handleNomChange(value: string) {
     onChange("nom", value);
 
+    // Annuler le timer de debounce ET la requête en vol
     if (timerRef.current) clearTimeout(timerRef.current);
+    if (abortRef.current) abortRef.current.abort();
 
     if (value.trim().length < 2) {
       setSuggestions([]);
@@ -64,18 +75,25 @@ export function MedicamentField({
     }
 
     timerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       setSearching(true);
       try {
-        const res = await apiFetch(`/medicaments/recherche?q=${encodeURIComponent(value.trim())}`);
+        const res = await apiFetch(`/medicaments/recherche?q=${encodeURIComponent(value.trim())}`, {
+          signal: controller.signal,
+        });
         if (res.ok) {
           const data: DrugSuggestion[] = await res.json();
           setSuggestions(data);
           setShowDrop(data.length > 0);
         }
-      } catch {
-        // API indisponible — saisie manuelle seulement
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          // API indisponible — saisie manuelle seulement
+        }
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) setSearching(false);
       }
     }, 300);
   }
