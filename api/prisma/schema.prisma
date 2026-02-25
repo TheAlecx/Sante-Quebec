@@ -182,6 +182,7 @@ model Medicament {
   prescriptions PrescriptionMedicament[]
 }
 
+
 model PrescriptionMedicament {
   prescription_id String
   medicament_id   String
