@@ -68,7 +68,7 @@ export function MedicamentField({
     if (timerRef.current) clearTimeout(timerRef.current);
     if (abortRef.current) abortRef.current.abort();
 
-    if (value.trim().length < 2) {
+    if (value.trim().length < 3) {
       setSuggestions([]);
       setShowDrop(false);
       return;
@@ -95,7 +95,7 @@ export function MedicamentField({
       } finally {
         if (!controller.signal.aborted) setSearching(false);
       }
-    }, 300);
+    }, 400);
   }
 
   function selectSuggestion(drug: DrugSuggestion) {
@@ -174,7 +174,7 @@ export default function PrescriptionForm({ dossierId, onDone, onCancel }: Props)
     setMedicaments(medicaments.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
     setError("");

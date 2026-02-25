@@ -7,7 +7,7 @@ router.use(authenticate);
 
 // ── Cache TTL en mémoire ──────────────────────────────────────────────────────
 const cache = new Map<string, { data: DrugResult[]; expiresAt: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 setInterval(() => {
   const now = Date.now();
@@ -34,7 +34,7 @@ function stripDosage(name: string): string {
 router.get("/recherche", async (req, res) => {
   const q = ((req.query.q as string) || "").trim();
 
-  if (q.length < 2) return res.json([]);
+  if (q.length < 3) return res.json([]);
 
   const key = q.toLowerCase();
   const now = Date.now();
@@ -44,7 +44,8 @@ router.get("/recherche", async (req, res) => {
   }
 
   try {
-    const url = `https://health-products.canada.ca/api/drug/drugproduct/?brandname=${encodeURIComponent(q)}&lang=fr&type=json`;
+    // class=Human : filtre les médicaments vétérinaires et désinfectants côté serveur
+    const url = `https://health-products.canada.ca/api/drug/drugproduct/?brandname=${encodeURIComponent(q)}&lang=fr&type=json&class=Human`;
     const upstream = await fetch(url);
 
     if (!upstream.ok) return res.json([]);
