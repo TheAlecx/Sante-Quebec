@@ -32,6 +32,14 @@ export function checkPermission(
       if (estTraitant) return next();
     }
 
+    // L'infirmier peut modifier/ajouter s'il a accès en lecture au dossier (pas suppression)
+    if (action !== "suppression" && role === "INFIRMIER") {
+      const aLecture = await prisma.autorisationDossier.findFirst({
+        where: { utilisateur_id: userId, dossier_id: dossierId, lecture: true },
+      });
+      if (aLecture) return next();
+    }
+
     const permission = await prisma.autorisationDossier.findFirst({
       where: {
         utilisateur_id: userId,

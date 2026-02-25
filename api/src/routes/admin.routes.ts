@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 
 const PROFESSIONAL_ROLES = ["INFIRMIER", "AMBULANCIER", "PHARMACIEN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"];
 const CAN_WRITE = ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"];
-const CAN_MODIFY = ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"];
+const CAN_MODIFY = ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"];
 
 async function grantAccessToAllDossiers(userId: string, role: string) {
   const dossiers = await prisma.dossierMedical.findMany({ select: { id_dossier: true } });

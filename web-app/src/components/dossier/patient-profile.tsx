@@ -45,9 +45,10 @@ interface MedecinItem {
 interface Props {
   dossierId: string;
   canEdit: boolean;
+  canNurseEdit?: boolean;
 }
 
-export default function PatientProfile({ dossierId, canEdit }: Props) {
+export default function PatientProfile({ dossierId, canEdit, canNurseEdit = false }: Props) {
   const router = useRouter();
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,27 +185,27 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
     }
   }
 
-  const fields: { label: string; field: string; value: string; editable: boolean; type?: string }[] = [
-    { label: "Nom", field: "nom", value: patient.nom, editable: true },
-    { label: "Prenom", field: "prenom", value: patient.prenom, editable: true },
-    { label: "Date de naissance", field: "date_naissance", value: formatDate(patient.date_naissance), editable: false },
-    { label: "Age", field: "", value: `${getAge(patient.date_naissance)} ans`, editable: false },
-    { label: "Sexe", field: "sexe", value: patient.sexe === "HOMME" ? "Homme" : "Femme", editable: false },
-    { label: "N° Assurance maladie", field: "numero_assurance", value: patient.numero_assurance || "—", editable: true },
-    { label: "Telephone", field: "telephone", value: patient.telephone || "—", editable: true },
-    { label: "Adresse", field: "adresse", value: patient.adresse || "—", editable: true },
-    { label: "Taille", field: "taille_cm", value: patient.taille_cm ? `${patient.taille_cm} cm` : "—", editable: true, type: "number" },
-    { label: "Poids", field: "poids_kg", value: patient.poids_kg ? `${patient.poids_kg} kg` : "—", editable: true, type: "number" },
-    { label: "IMC", field: "", value: bmi ? `${bmi} kg/m²` : "—", editable: false },
-    { label: "", field: "", value: "CONTACT_URGENCE_SEPARATOR", editable: false },
-    { label: "Contact d'urgence", field: "contact_urgence_nom", value: patient.contact_urgence_nom || "—", editable: true },
-    { label: "Tel. contact urgence", field: "contact_urgence_telephone", value: patient.contact_urgence_telephone || "—", editable: true },
-    { label: "Lien", field: "contact_urgence_lien", value: patient.contact_urgence_lien || "—", editable: true },
-    { label: "", field: "", value: "PHARMACIE_SEPARATOR", editable: false },
-    { label: "Pharmacie", field: "pharmacie_nom", value: patient.pharmacie_nom || "—", editable: true },
-    { label: "Tel. pharmacie", field: "pharmacie_telephone", value: patient.pharmacie_telephone || "—", editable: true },
-    { label: "Adresse pharmacie", field: "pharmacie_adresse", value: patient.pharmacie_adresse || "—", editable: true },
-    { label: "", field: "", value: "MEDECIN_SEPARATOR", editable: false },
+  const fields: { label: string; field: string; value: string; editable: boolean; nurseEditable: boolean; type?: string }[] = [
+    { label: "Nom", field: "nom", value: patient.nom, editable: true, nurseEditable: false },
+    { label: "Prenom", field: "prenom", value: patient.prenom, editable: true, nurseEditable: false },
+    { label: "Date de naissance", field: "date_naissance", value: formatDate(patient.date_naissance), editable: false, nurseEditable: false },
+    { label: "Age", field: "", value: `${getAge(patient.date_naissance)} ans`, editable: false, nurseEditable: false },
+    { label: "Sexe", field: "sexe", value: patient.sexe === "HOMME" ? "Homme" : "Femme", editable: false, nurseEditable: false },
+    { label: "N° Assurance maladie", field: "numero_assurance", value: patient.numero_assurance || "—", editable: true, nurseEditable: false },
+    { label: "Telephone", field: "telephone", value: patient.telephone || "—", editable: true, nurseEditable: false },
+    { label: "Adresse", field: "adresse", value: patient.adresse || "—", editable: true, nurseEditable: false },
+    { label: "Taille", field: "taille_cm", value: patient.taille_cm ? `${patient.taille_cm} cm` : "—", editable: true, nurseEditable: true, type: "number" },
+    { label: "Poids", field: "poids_kg", value: patient.poids_kg ? `${patient.poids_kg} kg` : "—", editable: true, nurseEditable: true, type: "number" },
+    { label: "IMC", field: "", value: bmi ? `${bmi} kg/m²` : "—", editable: false, nurseEditable: false },
+    { label: "", field: "", value: "CONTACT_URGENCE_SEPARATOR", editable: false, nurseEditable: false },
+    { label: "Contact d'urgence", field: "contact_urgence_nom", value: patient.contact_urgence_nom || "—", editable: true, nurseEditable: true },
+    { label: "Tel. contact urgence", field: "contact_urgence_telephone", value: patient.contact_urgence_telephone || "—", editable: true, nurseEditable: true },
+    { label: "Lien", field: "contact_urgence_lien", value: patient.contact_urgence_lien || "—", editable: true, nurseEditable: true },
+    { label: "", field: "", value: "PHARMACIE_SEPARATOR", editable: false, nurseEditable: false },
+    { label: "Pharmacie", field: "pharmacie_nom", value: patient.pharmacie_nom || "—", editable: true, nurseEditable: true },
+    { label: "Tel. pharmacie", field: "pharmacie_telephone", value: patient.pharmacie_telephone || "—", editable: true, nurseEditable: true },
+    { label: "Adresse pharmacie", field: "pharmacie_adresse", value: patient.pharmacie_adresse || "—", editable: true, nurseEditable: true },
+    { label: "", field: "", value: "MEDECIN_SEPARATOR", editable: false, nurseEditable: false },
   ];
 
   function getRawValue(field: string): string {
@@ -323,7 +324,7 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
                       ) : (
                         <span className="text-sm italic text-slate-400">Non assigné</span>
                       )}
-                      {canEdit && (
+                      {(canEdit || canNurseEdit) && (
                         <button
                           onClick={startEditMedecin}
                           className="ml-2 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
@@ -381,7 +382,7 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
             ) : (
               <div className="flex flex-1 items-center justify-between">
                 <span className="text-sm text-slate-900">{f.value}</span>
-                {canEdit && f.editable && f.field && (
+                {((canEdit && f.editable) || (canNurseEdit && f.nurseEditable)) && f.field && (
                   <button
                     onClick={() => startEdit(f.field, getRawValue(f.field))}
                     className="ml-2 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"

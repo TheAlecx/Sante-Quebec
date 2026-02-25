@@ -48,6 +48,7 @@ export default function DossierPage() {
   }, [rawId, router]);
 
   const userCanEdit = user ? canModify(user.role) : false;
+  const userIsNurse = user?.role === "INFIRMIER";
   const peutRefer = user?.role === "MEDECIN_GENERAL";
 
   if (!dossierId) return (
@@ -126,7 +127,7 @@ export default function DossierPage() {
       </div>
 
       <div className="mt-6">
-        {activeTab === "profil" && <PatientProfile dossierId={dossierId} canEdit={userCanEdit} />}
+        {activeTab === "profil" && <PatientProfile dossierId={dossierId} canEdit={userCanEdit} canNurseEdit={userIsNurse} />}
         {activeTab === "consultations" && <ConsultationTab dossierId={dossierId} />}
         {activeTab === "observations" && <ObservationTab dossierId={dossierId} />}
         {activeTab === "prescriptions" && <PrescriptionTab dossierId={dossierId} />}
