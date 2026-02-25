@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api";
 import { canAddConsultation, canDelete } from "@/lib/roles";
 import LoadingSpinner from "@/components/loading-spinner";
 import ErrorMessage from "@/components/error-message";
+import EtablissementAutocomplete from "@/components/ui/etablissement-autocomplete";
 
 interface Hospitalisation {
   id_hospitalisation: string;
@@ -127,7 +128,11 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">Etablissement *</label>
-              <input type="text" required value={form.etablissement} onChange={(e) => setForm({ ...form, etablissement: e.target.value })} placeholder="Ex: CHUM, CUSM..." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none" />
+              <EtablissementAutocomplete
+                value={form.etablissement}
+                onChange={(val) => setForm({ ...form, etablissement: val })}
+                placeholder="Rechercher un établissement..."
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-600">Service *</label>

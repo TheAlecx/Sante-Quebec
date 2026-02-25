@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import EtablissementAutocomplete from "@/components/ui/etablissement-autocomplete";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -452,9 +453,12 @@ export default function UrgencePage() {
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Carte hôpital</label>
-                  <input value={carteHopital} onChange={e => setCarteHopital(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Hôpital de destination</label>
+                  <EtablissementAutocomplete
+                    value={carteHopital}
+                    onChange={setCarteHopital}
+                    placeholder="Rechercher un établissement..."
+                  />
                 </div>
               </div>
             </Sec>

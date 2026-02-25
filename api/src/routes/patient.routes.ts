@@ -34,6 +34,27 @@ router.get("/dossiers", async (req, res) => {
     })));
   }
 
+  // Les médecins ne voient que les patients dont ils sont le médecin traitant
+  if (userRole === "MEDECIN_GENERAL" || userRole === "MEDECIN_SPECIALISTE") {
+    const dossiers = await prisma.dossierMedical.findMany({
+      where: { medecin_traitant_id: userId },
+      include: { patient: true },
+      orderBy: { date_creation: "desc" },
+    });
+    return res.json(dossiers.map((d) => ({
+      id_dossier: d.id_dossier,
+      etat: d.etat,
+      patient: {
+        nom: d.patient.nom,
+        prenom: d.patient.prenom,
+        date_naissance: d.patient.date_naissance,
+        sexe: d.patient.sexe,
+        numero_assurance: d.patient.numero_assurance,
+      },
+      permissions: { lecture: true, ajout: true, modification: true, suppression: false },
+    })));
+  }
+
   const autorisations = await prisma.autorisationDossier.findMany({
     where: { utilisateur_id: userId, lecture: true },
     include: { dossier: { include: { patient: true } } },

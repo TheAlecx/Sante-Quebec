@@ -20,6 +20,18 @@ export function checkPermission(
       return next();
     }
 
+    // Le médecin traitant a accès à lecture/ajout/modification (pas suppression)
+    const role = req.user.role;
+    if (
+      action !== "suppression" &&
+      (role === "MEDECIN_GENERAL" || role === "MEDECIN_SPECIALISTE")
+    ) {
+      const estTraitant = await prisma.dossierMedical.findFirst({
+        where: { id_dossier: dossierId, medecin_traitant_id: userId },
+      });
+      if (estTraitant) return next();
+    }
+
     const permission = await prisma.autorisationDossier.findFirst({
       where: {
         utilisateur_id: userId,

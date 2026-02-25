@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import LoadingSpinner from "@/components/loading-spinner";
 import ErrorMessage from "@/components/error-message";
+import EtablissementAutocomplete from "@/components/ui/etablissement-autocomplete";
 
 interface PatientData {
   id_patient: string;
@@ -54,6 +55,7 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pharmaAdresse, setPharmaAdresse] = useState("");
 
   const [editingMedecin, setEditingMedecin] = useState(false);
   const [medecins, setMedecins] = useState<MedecinItem[]>([]);
@@ -83,18 +85,23 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
   function startEdit(field: string, currentValue: string) {
     setEditingField(field);
     setEditValue(currentValue);
+    if (field === "pharmacie_nom") setPharmaAdresse("");
   }
 
   function cancelEdit() {
     setEditingField(null);
     setEditValue("");
+    setPharmaAdresse("");
   }
 
   async function saveEdit(field: string) {
     if (!patient) return;
     setSaving(true);
     try {
-      const body: Record<string, string> = { [field]: editValue };
+      const body: Record<string, string | null> = { [field]: editValue };
+      if (field === "pharmacie_nom" && pharmaAdresse) {
+        body.pharmacie_adresse = pharmaAdresse;
+      }
       const res = await apiFetch(`/patients/dossier/${dossierId}`, {
         method: "PUT",
         body: JSON.stringify(body),
@@ -104,6 +111,7 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
       setPatient({ ...updated, medecin_traitant: patient!.medecin_traitant });
       setEditingField(null);
       setEditValue("");
+      setPharmaAdresse("");
     } catch {
       // keep editing state on error
     } finally {
@@ -338,14 +346,24 @@ export default function PatientProfile({ dossierId, canEdit }: Props) {
 
             {editingField === f.field ? (
               <div className="flex flex-1 items-center gap-2">
-                <input
-                  type={f.type || "text"}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(e, f.field)}
-                  autoFocus
-                  className="flex-1 rounded-md border border-primary-light px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light/30"
-                />
+                {f.field === "pharmacie_nom" ? (
+                  <EtablissementAutocomplete
+                    value={editValue}
+                    onChange={setEditValue}
+                    onSelectAdresse={setPharmaAdresse}
+                    placeholder="Rechercher une pharmacie..."
+                    autoFocus
+                  />
+                ) : (
+                  <input
+                    type={f.type || "text"}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(e, f.field)}
+                    autoFocus
+                    className="flex-1 rounded-md border border-primary-light px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-light/30"
+                  />
+                )}
                 <button
                   onClick={() => saveEdit(f.field)}
                   disabled={saving}
