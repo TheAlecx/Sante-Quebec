@@ -20,6 +20,14 @@ interface Hospitalisation {
   medecin_traitant: string | null;
 }
 
+interface MedecinItem {
+  id_utilisateur: string;
+  nom: string;
+  prenom: string;
+  role: string;
+  institution: string | null;
+}
+
 export default function HospitalisationTab({ dossierId }: { dossierId: string }) {
   const { user } = useAuth();
   const { data, loading, error, refetch } = useApi<Hospitalisation[]>(
@@ -37,9 +45,14 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
     service: "",
     motif: "",
     resume: "",
-    medecin_traitant: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // Multi-médecin state
+  const [medecinsList, setMedecinsList] = useState<string[]>([]);
+  const [medecinsDisponibles, setMedecinsDisponibles] = useState<MedecinItem[]>([]);
+  const [loadingMedecins, setLoadingMedecins] = useState(false);
+  const [showMedecinSelect, setShowMedecinSelect] = useState(false);
 
   if (loading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error} onRetry={refetch} />;
@@ -64,6 +77,70 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
     return `${days} jour${days > 1 ? "s" : ""}`;
   }
 
+  function medecinLabel(m: MedecinItem) {
+    return `${m.role === "MEDECIN_SPECIALISTE" ? "Dre" : "Dr"} ${m.prenom} ${m.nom}`;
+  }
+
+  async function openForm() {
+    if (showForm) {
+      setShowForm(false);
+      setMedecinsList([]);
+      setShowMedecinSelect(false);
+      return;
+    }
+
+    const initMedecins: string[] = [];
+
+    // Si l'utilisateur est un médecin, récupérer son nom et le pré-remplir
+    if (user && (user.role === "MEDECIN_GENERAL" || user.role === "MEDECIN_SPECIALISTE")) {
+      setLoadingMedecins(true);
+      try {
+        const res = await apiFetch("/medecins");
+        if (res.ok) {
+          const liste: MedecinItem[] = await res.json();
+          setMedecinsDisponibles(liste);
+          const moi = liste.find((m) => m.id_utilisateur === user.id);
+          if (moi) initMedecins.push(medecinLabel(moi));
+        }
+      } finally {
+        setLoadingMedecins(false);
+      }
+    }
+
+    setMedecinsList(initMedecins);
+    setShowMedecinSelect(false);
+    setShowForm(true);
+  }
+
+  async function fetchMedecinsIfNeeded() {
+    setShowMedecinSelect(true);
+    if (medecinsDisponibles.length > 0) return;
+    setLoadingMedecins(true);
+    try {
+      const res = await apiFetch("/medecins");
+      if (res.ok) {
+        const liste: MedecinItem[] = await res.json();
+        setMedecinsDisponibles(liste);
+      }
+    } finally {
+      setLoadingMedecins(false);
+    }
+  }
+
+  function removeMedecin(index: number) {
+    setMedecinsList((list) => list.filter((_, i) => i !== index));
+  }
+
+  function selectMedecin(id: string) {
+    const med = medecinsDisponibles.find((m) => m.id_utilisateur === id);
+    if (!med) return;
+    const label = medecinLabel(med);
+    if (!medecinsList.includes(label)) {
+      setMedecinsList((list) => [...list, label]);
+    }
+    setShowMedecinSelect(false);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -73,12 +150,14 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
         body: JSON.stringify({
           ...form,
           date_sortie: form.date_sortie || null,
-          medecin_traitant: form.medecin_traitant || null,
+          medecin_traitant: medecinsList.length > 0 ? medecinsList.join(", ") : null,
         }),
       });
       if (res.ok) {
         setShowForm(false);
-        setForm({ date_admission: "", date_sortie: "", etablissement: "", service: "", motif: "", resume: "", medecin_traitant: "" });
+        setForm({ date_admission: "", date_sortie: "", etablissement: "", service: "", motif: "", resume: "" });
+        setMedecinsList([]);
+        setShowMedecinSelect(false);
         refetch();
       }
     } finally {
@@ -105,10 +184,11 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
         </h2>
         {showAdd && (
           <button
-            onClick={() => setShowForm(!showForm)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark"
+            onClick={openForm}
+            disabled={loadingMedecins && !showForm}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
           >
-            {showForm ? "Annuler" : "+ Nouvelle hospitalisation"}
+            {loadingMedecins && !showForm ? "Chargement..." : showForm ? "Annuler" : "+ Nouvelle hospitalisation"}
           </button>
         )}
       </div>
@@ -142,10 +222,73 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
               <label className="mb-1 block text-xs font-medium text-slate-600">Motif d&apos;admission *</label>
               <input type="text" required value={form.motif} onChange={(e) => setForm({ ...form, motif: e.target.value })} placeholder="Raison de l'hospitalisation" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none" />
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Medecin traitant</label>
-              <input type="text" value={form.medecin_traitant} onChange={(e) => setForm({ ...form, medecin_traitant: e.target.value })} placeholder="Nom du médecin" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none" />
+
+            {/* Médecin(s) traitant(s) */}
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-slate-600">Médecin(s) traitant(s)</label>
+
+              {/* Tags des médecins sélectionnés */}
+              {medecinsList.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {medecinsList.map((name, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() => removeMedecin(i)}
+                        className="ml-0.5 rounded-full p-0.5 hover:bg-primary/20"
+                        title="Retirer"
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Sélecteur déroulant */}
+              {showMedecinSelect ? (
+                <div className="flex gap-2">
+                  {loadingMedecins ? (
+                    <span className="text-sm text-slate-400">Chargement...</span>
+                  ) : (
+                    <select
+                      autoFocus
+                      defaultValue=""
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none"
+                      onChange={(e) => selectMedecin(e.target.value)}
+                    >
+                      <option value="">— Sélectionner un médecin —</option>
+                      {medecinsDisponibles
+                        .filter((m) => !medecinsList.includes(medecinLabel(m)))
+                        .map((m) => (
+                          <option key={m.id_utilisateur} value={m.id_utilisateur}>
+                            {medecinLabel(m)}{m.institution ? ` · ${m.institution}` : ""}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowMedecinSelect(false)}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={fetchMedecinsIfNeeded}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  + Ajouter un médecin
+                </button>
+              )}
             </div>
+
             <div className="sm:col-span-2">
               <label className="mb-1 block text-xs font-medium text-slate-600">Resume detaille *</label>
               <textarea required rows={6} value={form.resume} onChange={(e) => setForm({ ...form, resume: e.target.value })} placeholder="Résumé complet de l'hospitalisation: diagnostic, traitements, évolution, recommandations au congé..." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none" />
@@ -155,7 +298,7 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
             <button type="submit" disabled={submitting} className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50">
               {submitting ? "Enregistrement..." : "Enregistrer"}
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-slate-300 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            <button type="button" onClick={openForm} className="rounded-lg border border-slate-300 px-5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
               Annuler
             </button>
           </div>
@@ -225,7 +368,7 @@ export default function HospitalisationTab({ dossierId }: { dossierId: string })
                     </div>
                     {h.medecin_traitant && (
                       <div className="sm:col-span-2">
-                        <span className="font-medium text-slate-500">Medecin traitant:</span>{" "}
+                        <span className="font-medium text-slate-500">Médecin(s) traitant(s):</span>{" "}
                         <span className="text-slate-900">{h.medecin_traitant}</span>
                       </div>
                     )}
