@@ -49,23 +49,23 @@ export const ROLE_MENU: Record<Role, MenuItem[]> = {
 };
 
 export function canAddConsultation(role: Role): boolean {
-  return ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
+  return ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
 }
 
 export function canAddObservation(role: Role): boolean {
-  return ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"].includes(role);
+  return ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE", "INFIRMIER"].includes(role);
 }
 
 export function canAddPrescription(role: Role): boolean {
-  return ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
+  return ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
 }
 
 export function canModify(role: Role): boolean {
-  return ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
+  return ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
 }
 
 export function canDelete(role: Role): boolean {
-  return ["MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
+  return ["ADMIN", "MEDECIN_GENERAL", "MEDECIN_SPECIALISTE"].includes(role);
 }
 
 export function getRoleLabel(role: Role): string {
