@@ -14,6 +14,10 @@ export function checkPermission(
       return res.status(400).json({ message: "Dossier manquant" });
     }
 
+    // L'administrateur a accès complet à tous les dossiers
+    const role = req.user.role;
+    if (role === "ADMIN") return next();
+
     const urgenceActive = await checkUrgence(userId, dossierId);
     if (urgenceActive) {
       req.isUrgence = true;
@@ -21,7 +25,6 @@ export function checkPermission(
     }
 
     // Le médecin traitant a accès à lecture/ajout/modification (pas suppression)
-    const role = req.user.role;
     if (
       action !== "suppression" &&
       (role === "MEDECIN_GENERAL" || role === "MEDECIN_SPECIALISTE")
