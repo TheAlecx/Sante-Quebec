@@ -38,17 +38,18 @@ router.get("/recherche", async (req, res) => {
   }
 
   try {
-    // limit=20 : on demande seulement 20 résultats à l'API pour réduire la taille
-    // de la réponse et accélérer le transfert. On en garde 8 après filtrage.
-    const url = `https://health-products.canada.ca/api/drug/drugproduct/?brandname=${encodeURIComponent(q)}&lang=fr&type=json&limit=20`;
+    const url = `https://health-products.canada.ca/api/drug/drugproduct/?brandname=${encodeURIComponent(q)}&lang=fr&type=json`;
     const upstream = await fetch(url, { signal: AbortSignal.timeout(5000) });
 
     if (!upstream.ok) return res.json([]);
 
     const raw: unknown = await upstream.json();
+    // L'API peut retourner un tableau direct ou un objet paginé { data: [...] }
     const rows: Record<string, unknown>[] = Array.isArray(raw)
       ? (raw as Record<string, unknown>[])
-      : [];
+      : Array.isArray((raw as Record<string, unknown>).data)
+        ? ((raw as Record<string, unknown>).data as Record<string, unknown>[])
+        : [];
 
     const results: DrugResult[] = rows
       .filter((d) => !d.class || d.class === "Human")
