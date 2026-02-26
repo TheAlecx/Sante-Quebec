@@ -5,11 +5,11 @@ const router = Router();
 
 router.use(authenticate);
 
-// ── Cache mémoire (best-effort, fonctionne sur instances chaudes) ────────────
+
 const CKAN_URL =
   "https://www.donneesquebec.ca/recherche/api/3/action/datastore_search" +
   "?resource_id=a1988030-1f8b-4c67-bc29-ca8b9f710afd" +
-  "&limit=300" +
+  "&limit=32000" +
   "&fields=ETAB_NOM,ADRESSE,CODE_POSTA,MUN_NOM";
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure
