@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Role } from "@prisma/client";
 import { login, me } from "../controllers/auth.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { prisma } from "../utils/prisma";
@@ -6,12 +7,12 @@ import bcrypt from "bcrypt";
 
 const router = Router();
 
-const PROFESSIONAL_ROLES = [
-  "INFIRMIER",
-  "AMBULANCIER",
-  "PHARMACIEN",
-  "MEDECIN_GENERAL",
-  "MEDECIN_SPECIALISTE",
+const PROFESSIONAL_ROLES: Role[] = [
+  Role.INFIRMIER,
+  Role.AMBULANCIER,
+  Role.PHARMACIEN,
+  Role.MEDECIN_GENERAL,
+  Role.MEDECIN_SPECIALISTE,
 ];
 
 router.post("/login", login);
