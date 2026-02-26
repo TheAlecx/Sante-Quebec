@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { Sexe } from "@prisma/client";
 import { logAudit } from "../utils/audit";
 import { prisma } from "../utils/prisma";
 
@@ -42,26 +43,26 @@ export async function rechercherPatient(req: Request, res: Response) {
   });
 }
 
-export async function activerUrgence(req: Request, res: Response) {
+// Crée un dossier d'admission (Hospitalisation) depuis le flux urgence,
+// sans passer par checkPermission — utilisé par les ambulanciers.
+export async function creerAdmission(req: Request, res: Response) {
   const dossierId = Array.isArray(req.params.dossierId) ? req.params.dossierId[0] : req.params.dossierId;
   const {
-    raison,
-    dureeMinutes,
-    date_ramassage,
-    date_arrivee_hopital,
-    carte_hopital,
-    medications_notes,
+    date_admission,
+    etablissement,
+    service,
+    motif,
+    resume,
+    medecin_traitant,
+    date_sortie,
     numero_assurance,
-    rapport_data,
   } = req.body;
 
-  if (!raison) {
-    return res.status(400).json({ message: "Raison obligatoire" });
+  if (!date_admission || !etablissement || !service || !motif || !resume) {
+    return res.status(400).json({ message: "Champs obligatoires manquants (date_admission, etablissement, service, motif, resume)" });
   }
 
-  const dateFin = new Date(Date.now() + (dureeMinutes || 60) * 60000);
-
-  // Vérifier si le dossier existe ; sinon, créer un patient/dossier anonyme (mode manuel)
+  // Créer un patient/dossier anonyme si le dossier n'existe pas encore (mode manuel)
   const dossierExistant = await prisma.dossierMedical.findUnique({
     where: { id_dossier: dossierId },
     include: { patient: true },
@@ -73,7 +74,7 @@ export async function activerUrgence(req: Request, res: Response) {
         nom: "Non identifié",
         prenom: "Patient",
         date_naissance: new Date(),
-        sexe: "INCONNU",
+        sexe: Sexe.HOMME,
         numero_assurance: numero_assurance || null,
       },
     });
@@ -85,31 +86,26 @@ export async function activerUrgence(req: Request, res: Response) {
       },
     });
   } else if (numero_assurance && !dossierExistant.patient.numero_assurance) {
-    // Mise à jour du numéro d'assurance si fourni et non déjà enregistré
     await prisma.patient.update({
       where: { id_patient: dossierExistant.patient_id },
       data: { numero_assurance },
     });
   }
 
-  const acces = await prisma.accesUrgence.create({
+  const hospitalisation = await prisma.hospitalisation.create({
     data: {
-      raison,
+      date_admission: new Date(date_admission),
+      date_sortie: date_sortie ? new Date(date_sortie) : null,
+      etablissement,
+      service,
+      motif,
+      resume,
+      medecin_traitant: medecin_traitant || null,
       dossier_id: dossierId,
-      utilisateur_id: req.user!.id,
-      date_fin: dateFin,
-      date_ramassage: date_ramassage ? new Date(date_ramassage) : undefined,
-      date_arrivee_hopital: date_arrivee_hopital ? new Date(date_arrivee_hopital) : undefined,
-      carte_hopital: carte_hopital || undefined,
-      medications_notes: medications_notes || undefined,
-      rapport_data: rapport_data ?? undefined,
-    }
+    },
   });
 
-  await logAudit(req, "CREATION", "AccesUrgence", acces.id_acces);
+  await logAudit(req, "CREATION", "Hospitalisation", hospitalisation.id_hospitalisation);
 
-  res.status(201).json({
-    message: "Accès urgence activé",
-    expiration: dateFin
-  });
+  res.status(201).json(hospitalisation);
 }
