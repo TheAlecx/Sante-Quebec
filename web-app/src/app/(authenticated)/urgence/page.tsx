@@ -290,6 +290,7 @@ export default function UrgencePage() {
                 value={etablissement}
                 onChange={setEtablissement}
                 placeholder="Rechercher un hôpital ou CLSC..."
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-light focus:outline-none focus:ring-2 focus:ring-primary-light/20"
               />
             </div>
 
