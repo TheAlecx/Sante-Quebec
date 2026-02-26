@@ -10,30 +10,6 @@ interface Etablissement {
   CODE_POSTA: string | null;
 }
 
-// Cache module-level : un seul fetch par session navigateur
-let _cache: Etablissement[] | null = null;
-let _loading = false;
-const _callbacks: ((list: Etablissement[]) => void)[] = [];
-
-function loadEtablissements(onLoaded: (list: Etablissement[]) => void) {
-  if (_cache) { onLoaded(_cache); return; }
-  _callbacks.push(onLoaded);
-  if (_loading) return;
-  _loading = true;
-  apiFetch("/etablissements")
-    .then((r) => (r.ok ? r.json() : []))
-    .then((data: Etablissement[]) => {
-      _cache = data;
-      _callbacks.forEach((cb) => cb(data));
-      _callbacks.length = 0;
-    })
-    .catch(() => {
-      _callbacks.forEach((cb) => cb([]));
-      _callbacks.length = 0;
-    })
-    .finally(() => { _loading = false; });
-}
-
 interface Props {
   value: string;
   onChange: (value: string) => void;
@@ -52,9 +28,12 @@ export default function EtablissementAutocomplete({
   className = "",
   autoFocus = false,
 }: Props) {
-  const [etablissements, setEtablissements] = useState<Etablissement[]>([]);
+  const [suggestions, setSuggestions] = useState<Etablissement[]>([]);
   const [showDrop, setShowDrop] = useState(false);
+  const [searching, setSearching] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Fermer si clic à l'extérieur
   useEffect(() => {
@@ -67,21 +46,50 @@ export default function EtablissementAutocomplete({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  function handleFocus() {
-    loadEtablissements((list) => {
-      setEtablissements(list);
-      if (value.trim().length >= 1) setShowDrop(true);
-    });
-  }
+  // Nettoyage au démontage
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     onChange(v);
-    if (v.trim().length === 0) { setShowDrop(false); return; }
-    loadEtablissements((list) => {
-      setEtablissements(list);
-      setShowDrop(true);
-    });
+
+    // Annuler la requête et le timer en cours
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (abortRef.current) abortRef.current.abort();
+
+    if (v.trim().length < 2) {
+      setSuggestions([]);
+      setShowDrop(false);
+      return;
+    }
+
+    timerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setSearching(true);
+      try {
+        const res = await apiFetch(
+          `/etablissements?q=${encodeURIComponent(v.trim())}`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) return;
+        const data: Etablissement[] = await res.json();
+        if (!controller.signal.aborted) {
+          setSuggestions(data);
+          setShowDrop(data.length > 0);
+        }
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
+      }
+    }, 350);
   }
 
   function handleSelect(etab: Etablissement) {
@@ -91,28 +99,30 @@ export default function EtablissementAutocomplete({
       onSelectAdresse(parts.join(", "));
     }
     setShowDrop(false);
+    setSuggestions([]);
   }
-
-  const filtered = value.trim().length === 0
-    ? etablissements.slice(0, 10)
-    : etablissements.filter((e) =>
-        e.ETAB_NOM.toLowerCase().includes(value.toLowerCase().trim())
-      ).slice(0, 10);
 
   return (
     <div ref={wrapperRef} className="relative">
       <input
         value={value}
         onChange={handleChange}
-        onFocus={handleFocus}
+        onFocus={() => {
+          if (value.trim().length >= 2 && suggestions.length > 0) setShowDrop(true);
+        }}
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="off"
         className={className}
       />
-      {showDrop && filtered.length > 0 && (
+      {searching && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      )}
+      {showDrop && suggestions.length > 0 && (
         <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-          {filtered.map((etab, i) => (
+          {suggestions.map((etab, i) => (
             <li key={i}>
               <button
                 type="button"

@@ -5,46 +5,102 @@ const router = Router();
 
 router.use(authenticate);
 
-
-const CKAN_URL =
-  "https://www.donneesquebec.ca/recherche/api/3/action/datastore_search" +
-  "?resource_id=a1988030-1f8b-4c67-bc29-ca8b9f710afd" +
-  "&limit=32000" +
-  "&fields=ETAB_NOM,ADRESSE,CODE_POSTA,MUN_NOM";
-
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 heure
-
-let cacheData: { ETAB_NOM: string; ADRESSE: string | null; CODE_POSTA: string | null; MUN_NOM: string | null }[] = [];
-let cacheExpiry = 0;
-
-async function fetchEtablissements() {
-  if (Date.now() < cacheExpiry && cacheData.length > 0) return cacheData;
-
-  const res = await fetch(CKAN_URL);
-  if (!res.ok) throw new Error("CKAN indisponible");
-
-  const json = (await res.json()) as {
-    result: { records: { ETAB_NOM: string; ADRESSE: string | null; CODE_POSTA: string | null; MUN_NOM: string | null }[] };
-  };
-
-  cacheData = json.result.records.sort((a, b) => a.ETAB_NOM.localeCompare(b.ETAB_NOM, "fr"));
-  cacheExpiry = Date.now() + CACHE_TTL_MS;
-  return cacheData;
+// ── Cache par requête (30 min TTL) ────────────────────────────────────────────
+interface EtabResult {
+  ETAB_NOM: string;
+  ADRESSE: string | null;
+  MUN_NOM: string | null;
+  CODE_POSTA: string | null;
 }
 
-// GET /etablissements — liste complète (filtrée optionnellement par ?q=)
+const cache = new Map<string, { data: EtabResult[]; expiresAt: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of cache.entries()) {
+    if (v.expiresAt <= now) cache.delete(k);
+  }
+}, 15 * 60 * 1000).unref();
+
+// ── Nominatim (OpenStreetMap) ─────────────────────────────────────────────────
+interface NominatimResult {
+  display_name: string;
+  name?: string;
+  type: string;
+  class: string;
+  address: {
+    amenity?: string;
+    house_number?: string;
+    road?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    county?: string;
+    postcode?: string;
+  };
+}
+
+function extractNom(r: NominatimResult): string {
+  return (
+    r.address?.amenity ||
+    r.name ||
+    r.display_name.split(",")[0]
+  ).trim();
+}
+
 router.get("/", async (req, res) => {
+  const q = ((req.query.q as string) || "").trim();
+  if (q.length < 2) return res.json([]);
+
+  const key = q.toLowerCase();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return res.json(cached.data);
+
   try {
-    const records = await fetchEtablissements();
-    const q = (req.query.q as string | undefined)?.toLowerCase().trim();
+    const params = new URLSearchParams({
+      q,
+      format: "json",
+      addressdetails: "1",
+      countrycodes: "ca",
+      limit: "8",
+      "accept-language": "fr",
+    });
 
-    const filtered = q
-      ? records.filter((r) => r.ETAB_NOM.toLowerCase().includes(q))
-      : records;
+    const upstream = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params}`,
+      {
+        headers: {
+          // Nominatim exige un User-Agent identifiable
+          "User-Agent": "Sante-Quebec/1.0 (projet educatif)",
+          "Accept-Language": "fr",
+        },
+      }
+    );
 
-    res.json(filtered);
+    if (!upstream.ok) return res.json([]);
+
+    const results: NominatimResult[] = await upstream.json();
+
+    const data: EtabResult[] = results.map((r) => ({
+      ETAB_NOM: extractNom(r),
+      ADRESSE:
+        [r.address?.house_number, r.address?.road].filter(Boolean).join(" ") ||
+        null,
+      MUN_NOM:
+        r.address?.city ||
+        r.address?.town ||
+        r.address?.village ||
+        r.address?.municipality ||
+        r.address?.county ||
+        null,
+      CODE_POSTA: r.address?.postcode || null,
+    }));
+
+    cache.set(key, { data, expiresAt: Date.now() + 30 * 60 * 1000 });
+    res.json(data);
   } catch {
-    res.json([]); // En cas d'indisponibilité, ne pas bloquer l'UI
+    res.json([]);
   }
 });
 
